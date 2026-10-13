@@ -26,3 +26,9 @@ scripts/*.json
 test-runtime.cjs
 test-search.mjs
 api/server.js
+
+# Gate W2.2 test artifacts
+coverage/
+playwright-report/
+.auth/
+
