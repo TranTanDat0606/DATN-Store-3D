@@ -1,7 +1,7 @@
 # CANONICAL_CONTEXT — Store3D AI Development Pipeline
 
 > **Source of Truth.** When this file conflicts with other `.ai/` docs, prefer this file.
-> Last updated: 2026-08-28
+> Last updated: 2026-10-13 (Gate A1 — added post-migration source-control, CI, and branch-protection facts)
 
 ---
 
@@ -18,6 +18,7 @@ Store3D is a Vietnamese e-commerce platform for selling 3D-printed models (figur
 - **Target users:** Customers (browse, order, pay via QR, review) and Admins (manage products, orders, coupons, users, reviews, news)
 - **Deployment:** Vercel (client + serverless API) + Render (Express server)
 - **Status:** Stable and working. Both client and server deployed to production.
+- **Canonical repo:** `https://github.com/TranTanDat0606/DATN-Store-3D` — public, default branch `main`. Production URL: `https://store3d-rosy.vercel.app/`. (The legacy repo `store3D`, 129 commits, is frozen — never modify it. See §8 for full delivery facts.)
 
 ---
 
@@ -252,6 +253,39 @@ Provider nesting: StrictMode → ThemeProvider → BrowserRouter → AuthProvide
 - **Required env:** `MONGODB_URI`, `JWT_SECRET`
 - **Optional env:** `PORT`, `CLIENT_URL`, `RATE_LIMIT_*`, `CLOUDINARY_*`, `BANK_*`, `QR_TTL_MINUTES`, `PAYMENT_WEBHOOK_SECRET`, `SMTP_*`
 
+### Source Control (post-migration, verified 2026-10-13)
+- **Canonical repo:** `https://github.com/TranTanDat0606/DATN-Store-3D` — public, default branch `main`.
+- **Legacy repo:** `store3D` (129 commits) is frozen at `1645394`. Never modify it; the fresh sanitized baseline (`4f2b286`) was copied from it, then pushed here.
+- **Branch roles:**
+  - `main` — production source. Auto-deploys to Vercel production on push. Protected.
+  - `develop` — integration branch. All feature branches target it via PR. Protected.
+  - `demo` — showcase branch. Protected (no required checks). Promotion is `develop → demo`, documented policy only.
+  - `ci/github-actions` — merged (PR #1) and now stale; delete after Gate A2 approval.
+- **Merge policy:** standard merge commits only — no squash, no rebase, no force-push.
+- **Merge history:** PR #1 (`ci.yml` → develop, merge `425d680`), PR #2 (`ci.yml` → main, merge `03f68e3`).
+
+### CI (GitHub Actions, verified 2026-10-13)
+- **Workflow:** `.github/workflows/ci.yml` — triggers on `pull_request` → `[main, develop]`, `permissions: contents: read`.
+- **Job 1 — Server:** `npm ci` → `tsc` → `node:test`.
+- **Job 2 — Client:** `npm ci` → `oxlint` → `tsc -b` → `vite build`.
+- **Required check names (exact strings, used by rulesets):** `Server - typecheck + unit tests`, `Client - lint + typecheck + build`.
+- External check `Vercel Preview Comments` is NOT a required status check.
+- CI is PR-gating only. There is no auto-deploy from CI; production deploys via Vercel on push to `main`.
+
+### Branch Protection (GitHub rulesets, active, verified 2026-10-13)
+| Ruleset | id | Target | Required | Bypass |
+|---|---|---|---|---|
+| `protect-main` | 24980865 | `refs/heads/main` | 1 approval + required status checks + no fast-forward + no deletion | Owner `User/92079589` (`bypass_mode=pull_request`) — TEMPORARY; re-evaluate after ≥2 collaborators |
+| `protect-develop` | 24980866 | `refs/heads/develop` | 0 approvals + 2 required checks + no fast-forward + no deletion | none |
+| `protect-demo` | 24980868 | `refs/heads/demo` | 0 approvals + no fast-forward + no deletion (no required checks) | none |
+
+### Environments (verified 2026-10-13)
+- **Vercel project:** `store3d`, team `tran-dats-projects-e88531b9`, `productionBranch=main`.
+- **Production deployment:** `dpl_8nAZUu4b3sihQbm3crzJfT3SernW` (READY) at `main`=`03f68e3` → `https://store3d-rosy.vercel.app/`.
+- **Instant-rollback target:** `dpl_986yTkVU9vTgnYXcrpJdKJkBf91m` (READY, `4f2b286`).
+- **Env vars:** 23 vars, all `target=production` only; preview env vars = 0 (demo previews unusable until configured).
+- **Render:** service `store3d-api` (`render.yaml`); Render URL / API key still unverified (dashboard access pending).
+
 ---
 
 ## 9. ACCEPTANCE CRITERIA
@@ -382,5 +416,5 @@ cd server && npm test
 | Q6 | Should TypeScript strict mode be enabled in server tsconfig? | Type safety, catch more bugs at compile time | UNKNOWN |
 | Q7 | Should request logging (morgan) and API documentation (Swagger) be added? | Observability, developer experience | UNKNOWN |
 | Q8 | Should the CORS configuration be tightened in development? | Security in dev environment | UNKNOWN |
-| Q9 | Should the demo credentials in `client/README.md` be removed or obfuscated? | Security if repo is public | UNKNOWN |
-| Q10 | Should CI/CD pipeline (GitHub Actions) be set up? | Automated testing, deployment quality | UNKNOWN |
+| Q9 | Should the demo credentials in `client/README.md` be removed or obfuscated? | Security if repo is public | PARTIALLY ADDRESSED — sanitized baseline seed uses `CHANGE_ME_DEMO_PASSWORD` placeholder (no real credential committed). Confirm before final public docs. |
+| Q10 | Should CI/CD pipeline (GitHub Actions) be set up? | Automated testing, deployment quality | RESOLVED 2026-10-13 — CI active (2 required checks) + 3 branch-protection rulesets. Production auto-deploys via Vercel on push to `main` (not via CI). |
