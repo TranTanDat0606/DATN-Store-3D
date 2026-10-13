@@ -1,10 +1,12 @@
 # Store3D — Current State
 
-> Last updated: 2026-09-09
+> Last updated: 2026-10-13 (Gate A1 — post-migration source-control/CI facts + security & UI technical debt from audit)
 
 ## Current Project Status
 
 **Stable and working.** Fully functional Vietnamese e-commerce store for 3D-printed models. Client + API on Vercel, server on Render.
+
+**Source control & delivery (verified 2026-10-13):** canonical repo `https://github.com/TranTanDat0606/DATN-Store-3D` (public, default `main`). Branches: `main` (production, auto-deploys via Vercel), `develop` (integration, PR target), `demo` (showcase). GitHub Actions CI (2 required checks) + 3 active rulesets. Production `main`=`03f68e3` → `dpl_8nAZUu4b3sihQbm3crzJfT3SernW` → `https://store3d-rosy.vercel.app/`. Legacy repo `store3D` frozen. Full facts in `.ai/CANONICAL_CONTEXT.md` §8.
 
 ## Implemented Features
 
@@ -88,9 +90,9 @@ All 10 rules verified in `aiChatService.ts`:
 
 ## Known Bugs / Issues
 
-- **No critical bugs.** Application is stable.
-- Hidden demo credentials in `client/README.md` — potential security concern if repo is public
-- `store3d.vercel.app` custom domain points to wrong project (needs dashboard fix)
+- **No critical bugs.** Application is stable. (Known HIGH/MED security debts tracked separately below — not user-facing bugs.)
+- Demo credentials: sanitized baseline seed uses `CHANGE_ME_DEMO_PASSWORD` placeholder (no real credential committed). Confirm before final public docs.
+- `store3d-rosy.vercel.app` (production) verified working. Legacy `store3d.vercel.app` custom-domain note retained as low-priority (not re-verified post-migration).
 - News page card heights now equalized via flex layout fix
 - Address Book page removed — address management consolidated into Checkout inline edit
 
@@ -118,16 +120,36 @@ Changing `api/tsconfig.json` to `"module": "ES2022"` produces ESM output, but ES
 
 ## Known Technical Debt
 
+### Tooling / Process
 1. **No client-side tests.** Zero test files in `client/`. No vitest/jest configuration
-2. **Limited server tests.** Only 3 unit tests (15 test cases total)
+2. **Limited server tests.** 4 unit-test files only (`vietQr`, `seedCredentials`, `payment`, `orderStatus`) via `node:test`; no route/controller/service tests for order, cart, checkout, or auth flows
 3. **No root README.md**
 4. **CORS permissive in development** (`*` when `NODE_ENV !== 'production'`)
 5. **No request logging** (no morgan)
 6. **No API documentation** (no Swagger/OpenAPI)
-7. **No CI/CD pipeline**
+7. ~~No CI/CD pipeline~~ **RESOLVED 2026-10-13** — GitHub Actions CI active (2 required checks) + 3 branch-protection rulesets. Production auto-deploys via Vercel on push to `main`.
 8. **No environment validation** beyond MONGODB_URI and JWT_SECRET
 9. **TypeScript strict mode not enabled** in server
 10. **No database migrations** (Mongoose schemaless)
+11. **GitNexus has no indexed repo** — MCP installed but `gitnexus://repos` is empty; fall back to Grep/Glob until indexed.
+12. **Playwright MCP may be unavailable in-session** — configured globally but not always loaded; `test-*.spec.ts` at repo root have no `playwright.config.ts` and are not a working e2e suite.
+13. **Deep links 404 in production** — `vercel.json` rewrites only `/api/*`, no SPA fallback; hard refresh of any client route (incl. `/dang-nhap`, `/admin`) 404s.
+
+### Security (audit 2026-10-13 — line refs from audit digests; re-verify file:line at fix time. No source changed in Gate A1.)
+- **Webhook signature is env-gated (fail-open).** `paymentController.ts` skips HMAC verification when `PAYMENT_WEBHOOK_SECRET` is unset; route does not mount raw-body middleware. HIGH.
+- **Order price trusted from client.** `orderController.ts` reads `price`/`priceDiscounted` from `req.body`; server recompute (`recalculateTotals`) exists but is never triggered. HIGH.
+- **Auth middleware defects.** `auth.ts`: async JWT verify not awaited/caught (invalid token → unhandled rejection, no 401); `active` flag never re-checked after verify (banned admin stays active until token expiry). HIGH.
+- **No DB transaction on order creation.** `orderService.ts` writes Order+OrderItem+Payment+coupon without session; admin-cancel does not restore coupon usage. MED.
+- **Public AI endpoints accept free-form payloads.** `schemas/gemini.ts`, `schemas/aiChat.ts` have no Zod object (rate-limited only). MED.
+
+### UI / Frontend (audit 2026-10-13)
+- **God components:** `ProductDetailPage.tsx` (~281 lines, 10 `useState`, effect-driven variant fetch) and `CheckoutPage.tsx` (~755 lines, inline payment logic).
+- **Layout composition:** `Header`/`Footer` hardcoded in `App.tsx`; layout swaps page component instead of rendering `<Outlet>` → full-layout remount + scroll reset on navigation.
+- **State over-render:** `CartContext` dispatches full-array `SET` on every mutation → redundant localStorage writes + full-provider re-render.
+- **Duplicated logic:** filter/sort query-param parsing duplicated between `ProductsPage` and `SearchResultsPage`.
+- **Token drift:** ~26 hardcoded hex colors + ~25 inline styles outside the Tailwind `@theme` tokens.
+- **A11y:** duplicate `h1` on product detail; modals/lightbox lack focus trap and Escape handling; quantity input missing `inputMode="numeric"`.
+- **Missing states:** checkout lacks a loading state; login/register lack a submit spinner.
 
 ## Database Seed Data
 

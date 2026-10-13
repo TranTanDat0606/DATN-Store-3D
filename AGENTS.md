@@ -84,6 +84,8 @@ Do NOT read other `.ai/` files (PROJECT.md, ARCHITECTURE.md, KNOWLEDGE_MAP.md) u
 - You already know the exact file and function to change
 - Searching for a string/keyword (use `Grep` instead)
 
+**PRECONDITION (index required):** GitNexus only works on an indexed repo. Check `gitnexus://repos` first. If the target repo is not indexed (currently: 0 repos indexed), do NOT pretend GitNexus is available — fall back to `Grep`/`Glob` exploration, or request a dedicated indexing gate (`gitnexus analyze`, creates `.gitnexus/`).
+
 ### Context7
 **USE WHEN:**
 - External library/API documentation is actually needed
@@ -106,6 +108,8 @@ Do NOT read other `.ai/` files (PROJECT.md, ARCHITECTURE.md, KNOWLEDGE_MAP.md) u
 - Server-side API verification (use curl or server tests)
 - Simple CSS changes that don't need visual verification
 
+**AVAILABILITY DETECTION (do not assume):** The Playwright MCP server may be configured globally but not loaded in a session. Check the tool catalog before planning around it. In this environment the harness `browser.*` tools are the primary in-session option for navigation, screenshots, console and network inspection. Root-level `test-*.spec.ts` files are NOT a working e2e suite (no `playwright.config.ts` yet) — do not report them as coverage.
+
 ### Stitch
 **USE WHEN:**
 - UI/design generation is genuinely required
@@ -116,6 +120,8 @@ Do NOT read other `.ai/` files (PROJECT.md, ARCHITECTURE.md, KNOWLEDGE_MAP.md) u
 - Backend tasks
 - A usable design already exists
 - Minor UI tweaks (use existing components)
+
+**PRECEDENCE:** The machine-level global `AGENTS.md` Stitch asset-inventory rule applies to every Stitch design-to-code task (inventory every visual, classify assets, verify in browser before completion). Project-level instructions must never override or weaken it.
 
 ### Git
 **USE TARGETED COMMANDS:**
@@ -235,6 +241,8 @@ Reproduce → isolate → root cause → fix → regression verify
 Inspect current UI → design/reference if needed → implement → browser verify
 ```
 **Use design-first-development skill for substantial UI work.**
+
+**MANDATORY approval gate:** For new pages and UI redesigns, the design-first-development HARD GATE (explicit user approval after the design brief, before any implementation) is required — never skip or soften it, regardless of how small the change appears.
 
 **DO NOT force every task through every skill.**
 
