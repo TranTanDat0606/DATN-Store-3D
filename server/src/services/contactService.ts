@@ -1,0 +1,197 @@
+import { ContactRequest, ContactStatus } from '../models/ContactRequest';
+import { config } from '../config';
+import { emailService } from './email/email.service';
+
+const ALLOWED_TRANSITIONS: Record<string, ContactStatus[]> = {
+  [ContactStatus.New]: [ContactStatus.InProgress, ContactStatus.Rejected],
+  [ContactStatus.InProgress]: [ContactStatus.Resolved, ContactStatus.Rejected],
+  [ContactStatus.Resolved]: [],
+  [ContactStatus.Rejected]: [],
+};
+
+export interface ContactInput {
+  fullname: string;
+  email: string;
+  phone: string;
+  message: string;
+  subject?: string;
+  userId?: string;
+}
+
+export class ContactService {
+  async submit(data: ContactInput) {
+    const contact = await ContactRequest.create({
+      userId: data.userId || undefined,
+      fullname: data.fullname,
+      email: data.email,
+      phone: data.phone,
+      subject: data.subject || 'Liên hệ từ trang web',
+      message: data.message,
+      status: ContactStatus.New,
+    });
+
+    console.log('[Contact Submission]', {
+      id: contact._id,
+      to: config.supportEmail,
+      from: data.email,
+      name: data.fullname,
+      phone: data.phone,
+      message: data.message,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Send emails (fire-and-forget, don't block response)
+    const ticketId = String(contact._id).slice(-8).toUpperCase();
+    const submittedAt = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+
+    emailService.sendContactAdmin({
+      contactName: data.fullname,
+      contactEmail: data.email,
+      contactPhone: data.phone,
+      subject: data.subject || 'Liên hệ từ trang web',
+      message: data.message,
+      submittedAt,
+    }).catch((err) => { console.error('[Contact] sendContactAdmin fire-and-forget failed:', (err as Error).message); });
+
+    emailService.sendContactAcknowledgement({
+      customerName: data.fullname,
+      customerEmail: data.email,
+      ticketId,
+      subject: data.subject || 'Liên hệ từ trang web',
+      submittedAt,
+      message: data.message,
+    }).catch((err) => { console.error('[Contact] sendContactAcknowledgement fire-and-forget failed:', (err as Error).message); });
+
+    return {
+      success: true,
+      message: 'Liên hệ của bạn đã được ghi nhận. Chúng tôi sẽ phản hồi trong thời gian sớm nhất.',
+      id: contact._id,
+    };
+  }
+
+  async list(params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    search?: string;
+  }) {
+    const { page = 1, limit = 20, status, search } = params;
+    const filter: Record<string, unknown> = {};
+    if (status) filter.status = status;
+    if (search) {
+      filter.$or = [
+        { fullname: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { subject: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      ContactRequest.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      ContactRequest.countDocuments(filter),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page * limit < total,
+        hasPrevPage: page > 1,
+      },
+    };
+  }
+
+  async getById(id: string) {
+    return ContactRequest.findById(id).lean();
+  }
+
+  async updateStatus(id: string, status: ContactStatus, adminNote?: string) {
+    const contact = await ContactRequest.findById(id).lean() as (Record<string, unknown> & { status: string }) | null;
+    if (!contact) return null;
+
+    const allowed = ALLOWED_TRANSITIONS[contact.status] || [];
+    if (!allowed.includes(status)) {
+      throw new Error(
+        `Không thể chuyển trạng thái từ "${contact.status}" sang "${status}". Chỉ cho phép: ${allowed.length > 0 ? allowed.join(', ') : 'không (trạng thái cuối)'}`
+      );
+    }
+
+    const update: Record<string, unknown> = { status };
+    if (adminNote !== undefined) update.adminNote = adminNote;
+    if (status === ContactStatus.Resolved || status === ContactStatus.Rejected) {
+      update.resolvedAt = new Date();
+    }
+    return ContactRequest.findByIdAndUpdate(id, update, { new: true }).lean();
+  }
+
+  async addNote(id: string, adminNote: string) {
+    return ContactRequest.findByIdAndUpdate(id, { adminNote }, { new: true }).lean();
+  }
+
+  async sendResolution(id: string, resolutionContent: string) {
+    const contact = await ContactRequest.findById(id);
+    if (!contact) return null;
+
+    // Save resolution content first (always, even if email fails)
+    const setFields: Record<string, unknown> = { resolutionContent };
+    if (contact.status === ContactStatus.New) {
+      setFields.status = ContactStatus.InProgress;
+    }
+
+    // Attempt SMTP email delivery (AWAITED, not fire-and-forget)
+    let emailStatus: 'sent' | 'failed' | 'not_configured' = 'not_configured';
+    let emailError = '';
+    let sentAt: Date | undefined;
+
+    try {
+      const { emailService } = await import('./email/email.service');
+      const submittedAt = new Date(contact.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+      const result = await emailService.sendSupportReply({
+        customerName: contact.fullname,
+        customerEmail: contact.email,
+        ticketId: String(contact._id).slice(-8).toUpperCase(),
+        subject: contact.subject,
+        status: contact.status,
+        submittedAt,
+        adminReply: resolutionContent,
+        originalMessage: contact.message,
+        contactEmail: config.supportEmail,
+      });
+
+      emailStatus = result.status;
+      emailError = result.error || '';
+      if (result.success && result.messageId) {
+        sentAt = new Date();
+      }
+    } catch (err) {
+      emailStatus = 'failed';
+      emailError = (err as Error).message || 'Unknown email error';
+      console.error('[Contact] sendResolution email threw:', emailError);
+    }
+
+    setFields.emailStatus = emailStatus;
+    setFields.emailError = emailError;
+    if (sentAt) setFields.sentAt = sentAt;
+
+    const updated = await ContactRequest.findByIdAndUpdate(
+      id,
+      { $set: setFields },
+      { new: true }
+    ).lean();
+
+    return { updated, emailStatus, emailError, sentAt };
+  }
+
+  async countNew() {
+    return ContactRequest.countDocuments({ status: ContactStatus.New });
+  }
+}
+
+export const contactService = new ContactService();
