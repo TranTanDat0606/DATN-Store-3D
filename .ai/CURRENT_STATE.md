@@ -1,6 +1,6 @@
 # Store3D — Current State
 
-> Last updated: 2026-10-13 (Gate A1 — post-migration source-control/CI facts + security & UI technical debt from audit)
+> Last updated: 2026-10-14 (Gate W2.2 — test foundation on branch `test/foundation-w2.2`, awaiting review)
 
 ## Current Project Status
 
@@ -150,6 +150,19 @@ Changing `api/tsconfig.json` to `"module": "ES2022"` produces ESM output, but ES
 - **Token drift:** ~26 hardcoded hex colors + ~25 inline styles outside the Tailwind `@theme` tokens.
 - **A11y:** duplicate `h1` on product detail; modals/lightbox lack focus trap and Escape handling; quantity input missing `inputMode="numeric"`.
 - **Missing states:** checkout lacks a loading state; login/register lack a submit spinner.
+
+## Test Foundation (Gate W2.2 — verified 2026-10-14, branch `test/foundation-w2.2` @ `73c3a84`, unmerged)
+
+- **Component tests:** Vitest 5 + RTL 16 + MSW 2.15 (HTTP boundary, `msw/node` `setupServer`) + jsdom + vitest-axe (with manual `expect.extend` + `Assertion` type augmentation — package ships an empty `dist/extend-expect.js`). Real provider chain (`ThemeProvider→AuthProvider→CartProvider→wishlist→MemoryRouter`), deterministic fixtures, shared watch/report helpers. **20 tests / 4 files green** (product-card, product-list-page, cart-drawer, navbar) incl. scoped-rule a11y runs.
+- **E2E smoke (read-only):** Playwright, 7 specs — home, category nav, listing→PDP, news, theme toggle+persistence, responsive 390/768/1280, API routing + cookie behavior (health, CORS credentialed fetch, readable `/auth/me` 401). Local test topology: API `127.0.0.1:5005` + client `vite preview --host 127.0.0.1:3108` cross-origin (baked `VITE_API_URL` via `build:e2e` + `client/.env.e2e`, no proxy reliance). **17 passed** (3 mobile checks annotated expected-fail, see W2.2-4). No order/payment/webhook flows.
+- **DB isolation:** fail-closed guard `scripts/e2e-guard.mjs` (rejects non-loopback / non-`_e2e|_test` URLs before any DB work) + `scripts/e2e-start.mjs` runner that owns a disposable mongodb-memory-server DB, runs `seed --fresh` only against that DB, overrides JWT/payment/seed secrets with committed fixtures (never production creds). **8/8 node:test negative tests** incl. refusal exit-1. Memory server uses **wiredTiger** — the default `ephemeralForTest` engine wedges mid-run on this Windows host (mongod stops servicing established + new connections; observed seed hangs).
+- **Verification:** client vitest 20/20, client lint exit 0, `tsc -b && vite build` exit 0, server node:test 19/19, guard 8/8, Playwright 17 passed. CI job names / branch protection / root legacy test specs untouched.
+
+### Findings (pre-existing, NOT fixed in this gate)
+- **W2.2-1:** `cart-drawer.tsx` uses `<aside role="dialog">` → axe `aria-allowed-role`. Fix in Gate B4.
+- **W2.2-2:** sort Select trigger (Radix combobox) lacks an accessible name → axe `button-name`. Fix in Gate B3.
+- **W2.2-3:** listing page's first heading is an `h3` → axe `heading-order`. Fix in Gate B3.
+- **W2.2-4:** navbar right-side action cluster overflows the viewport by **34px at 390px** on every route (probed `/`, `/san-pham`, `/tin-tuc`). Desktop 1280 / tablet 768 clean. Responsive 390 checks annotated `test.fail()` (self-expiring). Fix in Gate B1 shell redesign.
 
 ## Database Seed Data
 

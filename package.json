@@ -17,7 +17,12 @@
     "multer": "^2.2.0",
     "zod": "^3.23.8"
   },
+  "scripts": {
+    "e2e": "playwright test --config e2e/playwright.config.ts",
+    "test:guard": "node --test scripts/e2e-guard.test.mjs"
+  },
   "devDependencies": {
-    "@playwright/test": "^1.63.0"
+    "@playwright/test": "^1.63.0",
+    "mongodb-memory-server": "^11.3.0"
   }
 }
