@@ -12,12 +12,33 @@ const PALETTE = [
   ['#8b5cf6', '#d946ef'],
 ];
 
+/**
+ * Escape a string for safe interpolation into SVG/XML text content.
+ *
+ * Labels come from data (category and product names, which routinely contain
+ * `&`, e.g. "Phụ kiện & Cosplay"). Interpolating them raw produces XML the
+ * browser cannot parse, so the whole image is rejected and renders at 0x0
+ * (`naturalWidth === 0`) instead of showing the placeholder.
+ *
+ * `&` must be replaced first so the entities introduced afterwards are not
+ * escaped a second time.
+ */
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
 export function svgDataUri(
   label: string,
   accent = 0,
   size = 600,
 ): string {
   const [c1, c2] = PALETTE[accent % PALETTE.length];
+  const safeLabel = escapeXml(label);
   const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
   <defs>
@@ -31,7 +52,7 @@ export function svgDataUri(
   <circle cx="${size / 2}" cy="${size / 2}" r="${size * 0.3}" fill="#ffffff22"/>
   <circle cx="${size / 2}" cy="${size / 2}" r="${size * 0.15}" fill="#00000022"/>
   <text x="${size / 2}" y="${size * 0.62}" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif"
-        font-size="${size * 0.055}" font-weight="600" fill="#ffffff">${label}</text>
+        font-size="${size * 0.055}" font-weight="600" fill="#ffffff">${safeLabel}</text>
   <text x="${size / 2}" y="${size * 0.7}" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif"
         font-size="${size * 0.035}" fill="#ffffffcc">3D Printed</text>
 </svg>`;
