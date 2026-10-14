@@ -20,8 +20,11 @@ const e2eDir = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(e2eDir, '..')
 
 export default defineConfig({
-  testDir: e2eDir,
-  testMatch: 'specs/**/*.spec.ts',
+  // Explicit, narrow discovery (Gate W2.2 / B-1 fix): ONLY the intended smoke
+  // specs under e2e/specs are ever collected — legacy root test-*.spec.ts,
+  // client Vitest tests and scripts/*.test.mjs are structurally out of scope.
+  testDir: path.join(e2eDir, 'specs'),
+  testMatch: '**/*.spec.ts',
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
