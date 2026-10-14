@@ -1,6 +1,5 @@
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import {
-  Box,
   Search,
   ShoppingBag,
   Heart,
@@ -13,12 +12,14 @@ import {
   Package,
   X,
   ImageOff,
+  ChevronDown,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useCart } from '@/contexts/CartContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useWishlist } from '@/contexts/WishlistContext'
+import { useCategories } from '@/hooks/useCategories'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -33,6 +34,7 @@ import { Badge } from '@/components/ui/badge'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useEffect } from 'react'
 import type { Product } from '@/types'
+import { Logo } from '@/components/common/logo'
 import { formatCurrency, resolveImageUrl } from '@/lib'
 
 function SearchSuggestions({ products, query, onSelect }: { products: Product[]; query: string; onSelect: () => void }) {
@@ -61,7 +63,7 @@ function SearchSuggestions({ products, query, onSelect }: { products: Product[];
               <div className="min-w-0 flex-1">
                 <p className="line-clamp-2 text-sm font-medium">{p.name}</p>
               </div>
-              <span className="text-primary shrink-0 text-sm font-semibold tabular-nums">
+              <span className="text-link shrink-0 text-sm font-semibold tabular-nums">
                 {formatCurrency(p.salePrice)}
               </span>
             </Link>
@@ -72,7 +74,7 @@ function SearchSuggestions({ products, query, onSelect }: { products: Product[];
         <Link
           to={`/san-pham?search=${encodeURIComponent(query)}`}
           onClick={onSelect}
-          className="hover:bg-accent text-primary flex items-center justify-center gap-1 px-3 py-2.5 text-sm font-medium"
+          className="hover:bg-accent text-link flex items-center justify-center gap-1 px-3 py-2.5 text-sm font-medium"
         >
           Xem tất cả kết quả cho “{query}”
         </Link>
@@ -86,6 +88,7 @@ export function Navbar() {
   const { totalItems, openCart } = useCart()
   const { products: wishlist } = useWishlist()
   const { theme, toggleTheme } = useTheme()
+  const categories = useCategories()
   const navigate = useNavigate()
   const { pathname, search: locationSearch } = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -143,42 +146,69 @@ export function Navbar() {
     navigate('/')
   }
 
+  const closeMobile = () => setMobileOpen(false)
+  const suggestionSelect = () => {
+    setShowSuggestions(false)
+    setSearchResults([])
+    setMobileOpen(false)
+  }
+
+  const hasActiveCategory = pathname === '/san-pham' && locationSearch.includes('categorySlug')
+  const navLinkClass = (active: boolean) =>
+    `text-sm font-medium transition-colors ${active ? 'text-link' : 'text-muted-foreground hover:text-foreground'}`
+
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur-md">
+    <header className="sticky top-0 z-40 w-full border-b bg-background/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6">
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden"
+          className="lg:hidden"
           onClick={() => setMobileOpen((v) => !v)}
-          aria-label="Mở menu"
+          aria-label={mobileOpen ? 'Đóng menu' : 'Mở menu'}
+          aria-expanded={mobileOpen}
+          aria-controls="mobile-menu"
         >
           {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
         </Button>
 
-        <Link to="/" className="flex shrink-0 items-center gap-2">
-          <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-xl">
-            <Box className="size-5" />
-          </span>
-          <span className="text-lg font-bold tracking-tight">
-            Store<span className="text-primary">3D</span>
-          </span>
+        <Link to="/" className="flex shrink-0 items-center" aria-label="Store 3D — Trang chủ">
+          <Logo className="max-[359px]:[&>span:last-child]:hidden" />
         </Link>
 
-        <nav className="hidden items-center gap-6 md:flex lg:ml-4">
-          <Link to="/" className={`text-sm font-medium transition-colors ${isActive('/', true) ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+        <nav className="hidden items-center gap-4 lg:flex" aria-label="Điều hướng chính">
+          <Link to="/" className={navLinkClass(isActive('/', true))}>
             Trang chủ
           </Link>
-          <Link to="/san-pham" className={`text-sm font-medium transition-colors ${isActive('/san-pham', true) && !locationSearch.includes('sort=best-selling') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+          <Link to="/san-pham" className={navLinkClass(isActive('/san-pham', true))}>
             Sản phẩm
           </Link>
-          <Link to="/san-pham?sort=best-selling" className={`text-sm font-medium transition-colors ${isActive('/san-pham') && locationSearch.includes('sort=best-selling') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
-            Bán chạy
-          </Link>
-          <Link to="/tin-tuc" className={`text-sm font-medium transition-colors ${isActive('/tin-tuc') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={`inline-flex items-center gap-1 text-sm font-medium transition-colors ${hasActiveCategory ? 'text-link' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Danh mục
+                <ChevronDown className="size-3.5" aria-hidden="true" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-h-80 w-64 overflow-y-auto">
+              <DropdownMenuItem asChild>
+                <Link to="/san-pham">Tất cả sản phẩm</Link>
+              </DropdownMenuItem>
+              {categories.length > 0 && <DropdownMenuSeparator />}
+              {categories.map((c) => (
+                <DropdownMenuItem key={c._id} asChild>
+                  <Link to={`/san-pham?categorySlug=${encodeURIComponent(c.slug)}`}>{c.name}</Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Link to="/tin-tuc" className={navLinkClass(isActive('/tin-tuc'))}>
             Tin tức
           </Link>
-          <Link to="/lien-he" className={`text-sm font-medium transition-colors ${isActive('/lien-he', true) ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+          <Link to="/lien-he" className={navLinkClass(isActive('/lien-he', true))}>
             Liên hệ
           </Link>
         </nav>
@@ -189,7 +219,8 @@ export function Navbar() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Tìm kiếm sản phẩm..."
-            className="bg-muted/50 pl-9 pr-4"
+            className="bg-muted pl-9 pr-4"
+            aria-label="Tìm kiếm sản phẩm"
             onFocus={() => setShowSuggestions(true)}
             onBlur={() => setTimeout(() => { setShowSuggestions(false); setSearchResults([]) }, 200)}
           />
@@ -198,7 +229,7 @@ export function Navbar() {
               <SearchSuggestions
                 products={searchResults}
                 query={search.trim()}
-                onSelect={() => { setShowSuggestions(false); setSearchResults([]) }}
+                onSelect={suggestionSelect}
               />
             </div>
           )}
@@ -232,7 +263,7 @@ export function Navbar() {
           {isAuthenticated && user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="ml-1 overflow-hidden rounded-full">
+                <Button variant="ghost" size="icon" className="ml-1 overflow-hidden rounded-full" aria-label="Tài khoản">
                   {user.avatar ? (
                     <img src={user.avatar} alt={user.fullname} loading="lazy" decoding="async" className="size-8 rounded-full object-cover" />
                   ) : (
@@ -271,7 +302,7 @@ export function Navbar() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button variant="ghost" size="sm" className="ml-1" onClick={() => navigate('/dang-nhap')}>
+            <Button variant="ghost" size="sm" className="ml-1 hidden sm:inline-flex" onClick={() => navigate('/dang-nhap')}>
               Đăng nhập
             </Button>
           )}
@@ -279,14 +310,15 @@ export function Navbar() {
       </div>
 
       {mobileOpen && (
-        <div className="border-t bg-background px-4 py-4 md:hidden">
+        <div id="mobile-menu" className="border-t bg-background px-4 py-4 lg:hidden">
           <form onSubmit={submitSearch} className="relative mb-3">
             <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Tìm kiếm sản phẩm..."
-              className="bg-muted/50 pl-9"
+              className="bg-muted pl-9"
+              aria-label="Tìm kiếm sản phẩm"
               onFocus={() => setShowSuggestions(true)}
               onBlur={() => setTimeout(() => { setShowSuggestions(false); setSearchResults([]) }, 200)}
             />
@@ -295,28 +327,50 @@ export function Navbar() {
                 <SearchSuggestions
                   products={searchResults}
                   query={search.trim()}
-                  onSelect={() => { setShowSuggestions(false); setSearchResults([]) }}
+                  onSelect={suggestionSelect}
                 />
               </div>
             )}
           </form>
-          <nav className="flex flex-col gap-2">
-            <Link to="/" className={`rounded-md px-3 py-2 text-sm font-medium ${isActive('/', true) ? 'bg-accent text-primary' : 'hover:bg-accent'}`}>
+          <nav className="flex flex-col gap-1" aria-label="Điều hướng di động">
+            <Link to="/" onClick={closeMobile} className={`rounded-md px-3 py-2 text-sm font-medium ${isActive('/', true) ? 'bg-accent text-link' : 'hover:bg-accent'}`}>
               Trang chủ
             </Link>
-            <Link to="/san-pham" className={`rounded-md px-3 py-2 text-sm font-medium ${isActive('/san-pham', true) && !locationSearch.includes('sort=best-selling') ? 'bg-accent text-primary' : 'hover:bg-accent'}`}>
+            <Link to="/san-pham" onClick={closeMobile} className={`rounded-md px-3 py-2 text-sm font-medium ${isActive('/san-pham', true) ? 'bg-accent text-link' : 'hover:bg-accent'}`}>
               Sản phẩm
             </Link>
-            <Link to="/san-pham?sort=best-selling" className={`rounded-md px-3 py-2 text-sm font-medium ${isActive('/san-pham') && locationSearch.includes('sort=best-selling') ? 'bg-accent text-primary' : 'hover:bg-accent'}`}>
-              Bán chạy
-            </Link>
-            <Link to="/tin-tuc" className={`rounded-md px-3 py-2 text-sm font-medium ${isActive('/tin-tuc') ? 'bg-accent text-primary' : 'hover:bg-accent'}`}>
+            <Link to="/tin-tuc" onClick={closeMobile} className={`rounded-md px-3 py-2 text-sm font-medium ${isActive('/tin-tuc') ? 'bg-accent text-link' : 'hover:bg-accent'}`}>
               Tin tức
             </Link>
-            <Link to="/lien-he" className={`rounded-md px-3 py-2 text-sm font-medium ${isActive('/lien-he', true) ? 'bg-accent text-primary' : 'hover:bg-accent'}`}>
+            <Link to="/lien-he" onClick={closeMobile} className={`rounded-md px-3 py-2 text-sm font-medium ${isActive('/lien-he', true) ? 'bg-accent text-link' : 'hover:bg-accent'}`}>
               Liên hệ
             </Link>
+            {categories.length > 0 && (
+              <>
+                <p className="text-muted-foreground mt-3 px-3 text-xs font-semibold tracking-wider uppercase">
+                  Danh mục
+                </p>
+                {categories.map((c) => (
+                  <Link
+                    key={c._id}
+                    to={`/san-pham?categorySlug=${encodeURIComponent(c.slug)}`}
+                    onClick={closeMobile}
+                    className={`rounded-md px-3 py-2 text-sm font-medium ${hasActiveCategory && locationSearch.includes(`categorySlug=${c.slug}`) ? 'bg-accent text-link' : 'hover:bg-accent'}`}
+                  >
+                    {c.name}
+                  </Link>
+                ))}
+              </>
+            )}
           </nav>
+          {!isAuthenticated && (
+            <div className="border-t mt-3 pt-3">
+              <Button variant="outline" className="w-full justify-start" onClick={() => { closeMobile(); navigate('/dang-nhap') }}>
+                <User className="size-4" />
+                Đăng nhập
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </header>

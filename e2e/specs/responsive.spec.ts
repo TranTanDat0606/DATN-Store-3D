@@ -16,17 +16,9 @@ for (const viewport of VIEWPORTS) {
 
     for (const route of ROUTES) {
       test(`${route} has no horizontal overflow`, async ({ page }) => {
-        // FINDING W2.2-4 (pre-existing app bug, NOT fixed in this gate):
-        // at 390px the navbar's right-side action cluster (theme/cart/wishlist
-        // buttons container, ~99px button + gap) extends to right=424 — a
-        // 34px horizontal overflow present on EVERY route (probed: /,
-        // /san-pham, /tin-tuc all overflow exactly 34px from the same
-        // navbar element). Desktop (1280) and tablet (768) are clean.
-        // test.fail() keeps the suite honest: the check RAN and correctly
-        // detected the bug; when Gate B1 redesigns the shell/navbar this
-        // annotation will flip to "passed unexpectedly" and must be removed.
-        if (viewport.width === 390) test.fail()
-
+        // Gate B1 fixed FINDING W2.2-4 (the navbar's right-side action cluster
+        // overflowed 390px by 34px): the header was redesigned to fit. The
+        // check is now STRICT at every viewport — no test.fail() annotation.
         await page.goto(route)
         // wait for real content (footer is static, present on every route)
         await expect(page.locator('footer').first()).toBeVisible()
