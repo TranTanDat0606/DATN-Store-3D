@@ -1,6 +1,6 @@
 # Store3D — Current State
 
-> Last updated: 2026-10-14 (Gate W2.2 — test foundation on branch `test/foundation-w2.2`, awaiting review)
+> Last updated: 2026-10-14 (Gate W2.2 MERGED into develop @ `8d15a56`; Gate B1 shell redesign implemented on branch `feat/b1-obsidian-shell`, awaiting review — production unchanged)
 
 ## Current Project Status
 
@@ -151,7 +151,7 @@ Changing `api/tsconfig.json` to `"module": "ES2022"` produces ESM output, but ES
 - **A11y:** duplicate `h1` on product detail; modals/lightbox lack focus trap and Escape handling; quantity input missing `inputMode="numeric"`.
 - **Missing states:** checkout lacks a loading state; login/register lack a submit spinner.
 
-## Test Foundation (Gate W2.2 — verified 2026-10-14, branch `test/foundation-w2.2` @ `73c3a84`, unmerged)
+## Test Foundation (Gate W2.2 — merged into develop @ `8d15a56`, 2026-10-14; extended by Gate B1)
 
 - **Component tests:** Vitest 5 + RTL 16 + MSW 2.15 (HTTP boundary, `msw/node` `setupServer`) + jsdom + vitest-axe (with manual `expect.extend` + `Assertion` type augmentation — package ships an empty `dist/extend-expect.js`). Real provider chain (`ThemeProvider→AuthProvider→CartProvider→wishlist→MemoryRouter`), deterministic fixtures, shared watch/report helpers. **20 tests / 4 files green** (product-card, product-list-page, cart-drawer, navbar) incl. scoped-rule a11y runs.
 - **E2E smoke (read-only):** Playwright, 7 specs — home, category nav, listing→PDP, news, theme toggle+persistence, responsive 390/768/1280, API routing + cookie behavior (health, CORS credentialed fetch, readable `/auth/me` 401). Local test topology: API `127.0.0.1:5005` + client `vite preview --host 127.0.0.1:3108` cross-origin (baked `VITE_API_URL` via `build:e2e` + `client/.env.e2e`, no proxy reliance). **17 passed** (3 mobile checks annotated expected-fail, see W2.2-4). No order/payment/webhook flows.
@@ -162,9 +162,18 @@ Changing `api/tsconfig.json` to `"module": "ES2022"` produces ESM output, but ES
 - **W2.2-1:** `cart-drawer.tsx` uses `<aside role="dialog">` → axe `aria-allowed-role`. Fix in Gate B4.
 - **W2.2-2:** sort Select trigger (Radix combobox) lacks an accessible name → axe `button-name`. Fix in Gate B3.
 - **W2.2-3:** listing page's first heading is an `h3` → axe `heading-order`. Fix in Gate B3.
-- **W2.2-4:** navbar right-side action cluster overflows the viewport by **34px at 390px** on every route (probed `/`, `/san-pham`, `/tin-tuc`). Desktop 1280 / tablet 768 clean. Responsive 390 checks annotated `test.fail()` (self-expiring). Fix in Gate B1 shell redesign.
+- **W2.2-4:** navbar right-side action cluster overflows the viewport by **34px at 390px** on every route. **FIXED in Gate B1** (header redesigned to fit; responsive 390 checks are now strict, `test.fail()` annotations removed).
 
-## Database Seed Data
+## Gate B1 — Obsidian shell (implemented 2026-10-14, branch `feat/b1-obsidian-shell` from develop @ `8d15a56`, awaiting review — NOT merged, production unchanged)
+
+- **Design tokens (Tailwind v4):** `.ai/CANONICAL_CONTEXT.md` §6 palette is superseded for the SHELL by the approved Obsidian Showroom / Graphite THEME-SYSTEM contract: CTA fill `--primary` #7C3AED both themes (AA with white), dark text accent via new `--link` (#8B5CF6 dark / #6D28D9 light), plus `--tech`/`--star`/`--success` tokens; radius 8px. Existing semantic token names unchanged → shared utilities re-skin app-wide.
+- **Logo:** L.01 "Layer 3" SVG mark + STORE 3D lockup (`components/common/logo.tsx`), favicon asset `public/favicon.svg` (+`?v=3` cache buster). Production favicon swap remains deploy-time only.
+- **Header/footer:** real category navigation (`useCategories`, session-memoized; links `/san-pham?categorySlug=…`), preserved search/theme/cart/wishlist/auth behavior; footer rebuilt with truthful content only (no invented address/phone/e-mail/social links, no free-shipping claims). "Bán chạy" inline nav entry removed per approved 5-item nav (still reachable via listing sort). Inline nav now shows from `lg` (1024px); tablets use the compact header.
+- **Stock contract:** `lib/stock.ts` — low stock = 1..3, 0 = out (for Gate B2+ product cards).
+- **Verification:** client vitest **36/36** (20 pre-existing + 16 new: navbar category/mobile-menu, footer truthfulness/links/axe, logo, stock, theme system-preference), lint exit 0, `tsc -b && vite build` exit 0, server node:test 19/19, guard 8/8, Playwright **21 passed** (responsive 390 STRICT — W2.2-4 closed; new shell spec: desktop category menu, 390px mobile menu, search/cart/wishlist/login entry points; theme spec + system-preference live-change case). Real-app screenshots captured at 1440/390 × dark/light.
+- **Known limitations:** page bodies (home hero incl. fictional 500+/10K+/4.9 stats, product cards, listing sidebar, news) are NOT redesigned — Gate B2/B3 scope; `text-primary` (now #7C3AED) remains below AA as normal-size TEXT on dark in those pages until B2 migrates them to `text-link`/`text-accent-violet`. jsdom axe does not evaluate color contrast; token contrast comes from the approved contract. CANONICAL §6 palette update + § C3 ("no client-side tests" — stale since W2.2) pending a separate approved docs change.
+
+
 
 Demo accounts:
 | Role | Email | Password |

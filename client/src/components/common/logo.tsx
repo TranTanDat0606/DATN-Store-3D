@@ -8,9 +8,10 @@ import { cn } from '@/lib/utils'
  * touching the top bar's entry edge, and a dotted build-plate baseline.
  *
  * Brand constants are FIXED in both themes (per the approved logo sheet):
- * bars violet #8B5CF6, nozzle cyan #22D3EE. Only the wordmark flips
- * (white on Obsidian, #1A1A22 on Graphite) — via the `link` token, which
- * carries the per-theme brand text accent.
+ * bars violet #8B5CF6, nozzle cyan #22D3EE. The wordmark flips per theme:
+ * "STORE" follows the foreground token (near-white on Obsidian, #1A1A22 on
+ * Graphite) while "3D" stays the brand accent via the `link` token
+ * (violet #8B5CF6 on dark, #6D28D9 on light).
  */
 const BAR = '#8b5cf6'
 const NOZZLE = '#22d3ee'

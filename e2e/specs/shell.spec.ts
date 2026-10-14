@@ -42,6 +42,36 @@ test.describe('Shell — desktop header category navigation', () => {
     expect(watch.failedResponses, watch.failedResponses.join('\n')).toEqual([])
     expect(watch.consoleErrors, watch.consoleErrors.join('\n')).toEqual([])
   })
+
+  test('search, cart and wishlist/login entry points work from the header', async ({ page }) => {
+    const watch = watchPage(page, ANONYMOUS_BROWSE)
+
+    await page.goto('/')
+    await expect(page.locator('header').first()).toBeVisible()
+
+    // search: typing triggers the debounced product lookup + suggestion panel
+    const [searchResponse] = await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/products') && r.url().includes('search=')),
+      page.getByRole('textbox', { name: 'Tìm kiếm sản phẩm' }).fill('Móc khóa'),
+    ])
+    expect(searchResponse.ok()).toBe(true)
+    await expect(page.getByRole('link', { name: /Xem tất cả kết quả/ })).toBeVisible()
+
+    // cart entry point opens the cart drawer
+    // (exact: true — product cards carry "Thêm vào giỏ hàng" aria-labels that
+    // would otherwise substring-match the header's "Giỏ hàng")
+    await page.getByRole('button', { name: 'Giỏ hàng', exact: true }).click()
+    await expect(page.getByRole('dialog', { name: 'Giỏ hàng' })).toBeVisible()
+    await page.getByRole('button', { name: 'Đóng giỏ hàng' }).click()
+    await expect(page.getByRole('dialog', { name: 'Giỏ hàng' })).toBeHidden()
+
+    // wishlist entry point for anonymous users lands on the login page
+    await page.getByRole('button', { name: 'Danh sách yêu thích' }).click()
+    await expect(page).toHaveURL(/\/dang-nhap/)
+
+    expect(watch.failedResponses, watch.failedResponses.join('\n')).toEqual([])
+    expect(watch.consoleErrors, watch.consoleErrors.join('\n')).toEqual([])
+  })
 })
 
 test.describe('Shell — mobile menu at 390px', () => {
