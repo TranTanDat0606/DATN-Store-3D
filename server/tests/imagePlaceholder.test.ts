@@ -4,6 +4,12 @@ import { svgDataUri } from '../src/utils/imagePlaceholder';
 
 const PREFIX = 'data:image/svg+xml;base64,';
 
+/**
+ * Every `&` must begin a valid entity. Shared by the well-formedness gate and
+ * the production regression assertion so the two can never drift apart.
+ */
+const BARE_AMP = /&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/;
+
 function decode(uri: string): string {
   assert.ok(
     uri.startsWith(PREFIX),
@@ -21,8 +27,7 @@ function decode(uri: string): string {
  * No third-party XML parser is added for this — the project carries none.
  */
 function assertWellFormedSvg(svg: string): void {
-  const bareAmp = /&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/;
-  assert.ok(!bareAmp.test(svg), 'SVG contains a raw "&" that is not a valid entity');
+  assert.ok(!BARE_AMP.test(svg), 'SVG contains a raw "&" that is not a valid entity');
 
   const stack: string[] = [];
   const tag = /<(\/?)([A-Za-z][A-Za-z0-9:.-]*)([^>]*?)(\/?)>/g;
@@ -72,7 +77,7 @@ test('escapes the ampersand in "Phụ kiện & Cosplay" (production regression)'
   const svg = decode(uri);
 
   assert.ok(
-    !/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(svg),
+    !BARE_AMP.test(svg),
     'no bare "&" may survive in the generated SVG'
   );
   assert.ok(svg.includes('Phụ kiện &amp; Cosplay'), 'ampersand must be entity-encoded');

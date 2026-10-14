@@ -13,15 +13,10 @@ const PALETTE = [
 ];
 
 /**
- * Escape a string for safe interpolation into SVG/XML text content.
- *
- * Labels come from data (category and product names, which routinely contain
- * `&`, e.g. "Phụ kiện & Cosplay"). Interpolating them raw produces XML the
- * browser cannot parse, so the whole image is rejected and renders at 0x0
- * (`naturalWidth === 0`) instead of showing the placeholder.
- *
- * `&` must be replaced first so the entities introduced afterwards are not
- * escaped a second time.
+ * Escape text for interpolation into SVG/XML content. A raw `&` or `<` makes
+ * the document unparseable, so the browser rejects the entire image and it
+ * renders at 0x0 (`naturalWidth === 0`). `&` is replaced first so the entities
+ * introduced afterwards are not escaped a second time.
  */
 function escapeXml(value: string): string {
   return value
