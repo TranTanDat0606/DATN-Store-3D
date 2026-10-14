@@ -1,5 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
-  <path d="m3.3 7 8.7 5 8.7-5"/>
-  <path d="M12 22V12"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- L.01 "Layer 3" mark on an Obsidian tile (approved favicon direction).
+       Brand violet #8B5CF6 + nozzle cyan #22D3EE, fixed in both themes. -->
+  <rect width="64" height="64" rx="14" fill="#101018"/>
+  <g transform="translate(32 30) scale(0.88) translate(-32 -30)">
+    <g fill="#8B5CF6">
+      <rect x="10" y="9" width="44" height="7" rx="1.5"/>
+      <rect x="13" y="19" width="41" height="7" rx="1.5"/>
+      <rect x="17" y="33" width="37" height="7" rx="1.5"/>
+      <rect x="10" y="46" width="44" height="7" rx="1.5"/>
+      <rect x="46" y="16" width="8" height="3"/>
+      <rect x="46" y="26" width="8" height="7"/>
+      <rect x="46" y="40" width="8" height="6"/>
+    </g>
+    <polygon points="10,1 18,1 13.5,9" fill="#22D3EE"/>
+    <g fill="#8B5CF6" opacity="0.45">
+      <circle cx="11" cy="57.5" r="1"/>
+      <circle cx="16" cy="57.5" r="1"/>
+      <circle cx="21" cy="57.5" r="1"/>
+      <circle cx="26" cy="57.5" r="1"/>
+      <circle cx="31" cy="57.5" r="1"/>
+      <circle cx="36" cy="57.5" r="1"/>
+      <circle cx="41" cy="57.5" r="1"/>
+      <circle cx="46" cy="57.5" r="1"/>
+      <circle cx="51" cy="57.5" r="1"/>
+    </g>
+  </g>
 </svg>

@@ -3,75 +3,97 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Gate B1 — semantic design tokens (Obsidian Showroom / Graphite, approved
+ * THEME-SYSTEM contract). Same semantic names as before; only VALUES change,
+ * so every existing utility (bg-background, text-muted-foreground, ...) re-skins.
+ *
+ * Contrast-critical decisions from the contract:
+ *  - CTA fill `--primary` is #7C3AED in BOTH themes (white on it = 5.70:1 AA).
+ *    #8B5CF6 (4.23:1 with white) is NOT a button fill — it is the dark-theme
+ *    brand TEXT accent exposed as `--link`.
+ *  - `--input` is the interactive form border (>=3:1 per WCAG 1.4.11);
+ *    `--border` stays decorative-only.
+ */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.58 0.165 250);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.58 0.165 250);
+  /* Graphite (light) */
+  --radius: 0.5rem;
+  --background: #fafafa;
+  --foreground: #1a1a22;
+  --card: #ffffff;
+  --card-foreground: #1a1a22;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a22;
+  --primary: #7c3aed;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f1f5;
+  --secondary-foreground: #1a1a22;
+  --muted: #f1f1f5;
+  --muted-foreground: #5a5a6e;
+  --accent: #f1f1f5;
+  --accent-foreground: #1a1a22;
+  --link: #6d28d9;
+  --tech: #0e7490;
+  --star: #b45309;
+  --success: #16a34a;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #e2e2ea;
+  --input: #94949e;
+  --ring: #6d28d9;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.58 0.165 250);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.585 0.233 277.117);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1a1a22;
+  --sidebar-primary: #7c3aed;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f1f5;
+  --sidebar-accent-foreground: #1a1a22;
+  --sidebar-border: #e2e2ea;
+  --sidebar-ring: #6d28d9;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.75 0.14 245);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.75 0.14 245);
+  /* Obsidian (dark) */
+  --background: #07070c;
+  --foreground: #f4f4fa;
+  --card: #171724;
+  --card-foreground: #f4f4fa;
+  --popover: #171724;
+  --popover-foreground: #f4f4fa;
+  --primary: #7c3aed;
+  --primary-foreground: #ffffff;
+  --secondary: #101018;
+  --secondary-foreground: #f4f4fa;
+  --muted: #101018;
+  --muted-foreground: #a0a0b8;
+  --accent: #171724;
+  --accent-foreground: #f4f4fa;
+  --link: #8b5cf6;
+  --tech: #22d3ee;
+  --star: #fbbf24;
+  --success: #4ade80;
+  --destructive: #f87171;
+  --destructive-foreground: #07070c;
+  --border: #26263a;
+  --input: #8e8ea0;
+  --ring: #22d3ee;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.75 0.14 245);
-  --sidebar-primary-foreground: oklch(0.205 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.75 0.14 245);
+  --sidebar: #171724;
+  --sidebar-foreground: #f4f4fa;
+  --sidebar-primary: #7c3aed;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #101018;
+  --sidebar-accent-foreground: #f4f4fa;
+  --sidebar-border: #26263a;
+  --sidebar-ring: #22d3ee;
 }
 
 @theme inline {
@@ -94,6 +116,10 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-link: var(--link);
+  --color-tech: var(--tech);
+  --color-star: var(--star);
+  --color-success: var(--success);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -189,7 +215,7 @@ html.theme-transition *::after {
   top: 0;
   bottom: 0;
   width: 2px;
-  background: oklch(0.58 0.165 250);
+  background: var(--link);
   border-radius: 1px;
 }
 
