@@ -13,9 +13,17 @@ const router = Router();
  * persist, so no caller — including an administrator — can enable a feature
  * that this deployment has not released.
  *
- * The client uses it to hide navigation and routes for unreleased features.
- * Treat it as a visibility hint only; every protected route keeps its own
- * server-side gate.
+ * What it is (review fix F2): an authoritative report of what this deployment
+ * has switched on. Every key with wired routes is enforced by
+ * requireFeature() on its router (product/category → catalog, news → news,
+ * addresses/wishlist → account, register → auth.register), so `false` here
+ * means those routes answer 404. Keys without released routes yet (banners,
+ * cms.*) report false in production until a deployment enables them, and the
+ * W2+ routes that carry them must mount requireFeature(key) when they land.
+ * GET /api/release itself and auth infrastructure stay ungated (R-R2).
+ *
+ * Client-side consumption is intentionally NOT wired yet: no Storefront/Admin
+ * UI may be built before Gate 1 design approval (A-13).
  */
 router.get(
   '/',

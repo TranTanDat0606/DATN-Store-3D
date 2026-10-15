@@ -73,8 +73,33 @@ const ALLOWED_TAGS = [
  * Attributes required by the article markup. `id` is retained because
  * `parseMarkdownToHtml` injects heading ids for the table of contents.
  * `class` is retained because Tailwind prose modifiers style the content.
+ *
+ * `class` (accepted risk, review fix F8): authors choose class names freely,
+ * so a compromised Admin account could attach classes the stylesheet does not
+ * expect — e.g. fixed-position utilities that overlay the page (UI redress).
+ * This is accepted: the attribute is inert in every other way (no script, no
+ * URL), the attack already requires an Admin session, and an allowlist of
+ * prose class names would have to change with every Tailwind prose variant.
+ * Rendering stays inside the news article container, and `style` remains in
+ * FORBID_ATTR so class-based styling cannot grow inline-CSS vectors.
+ *
+ * `target` (review fix F6): allowed so the afterSanitizeAttributes hook below
+ * can actually do its job — it rewrites every `target="_blank"` link to carry
+ * `rel="noopener noreferrer"`. Without `target` in this list the attribute was
+ * silently stripped and the hook could never fire, leaving dead security code.
  */
-const ALLOWED_ATTR = ['href', 'src', 'alt', 'title', 'id', 'class', 'colspan', 'rowspan', 'lang']
+const ALLOWED_ATTR = [
+  'href',
+  'src',
+  'alt',
+  'title',
+  'id',
+  'class',
+  'colspan',
+  'rowspan',
+  'lang',
+  'target',
+]
 
 /**
  * Belt-and-braces: these are already outside ALLOWED_TAGS / ALLOWED_ATTR, but
@@ -110,7 +135,13 @@ function registerHooks(): void {
  * Guarantees:
  * - no `<script>` / `<style>` / `<iframe>` / `<object>` / `<embed>` / form controls
  * - no inline event handlers (`on*`) and no `srcdoc` / `style` attributes
- * - no `javascript:`, `vbscript:` or `data:` URL schemes
+ * - no `javascript:` / `vbscript:` navigation, and `data:` URLs only as
+ *   media sources: DOMPurify's own data-URI handling still applies the URI
+ *   pattern above, which rejects `data:text/html` documents while leaving
+ *   `data:image/*` usable for `<img src>` (base64 thumbnails). Images cannot
+ *   execute script, so this stays safe — do not "fix" it by allowing `data:`
+ *   on `href` (review fix F7: the old comment claimed data: URLs were
+ *   rejected outright, which was not accurate).
  * - legitimate Vietnamese article formatting and heading ids survive
  */
 export function sanitizeHtml(dirty: string): string {

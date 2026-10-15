@@ -96,4 +96,27 @@ describe('parseMarkdownToHtml — stored XSS hardening', () => {
     const { html } = parseMarkdownToHtml('<div srcdoc="<script>alert(1)</script>">x</div>')
     expect(html.toLowerCase()).not.toContain('srcdoc')
   })
+
+  it('keeps script/style text out of TOC entries and heading ids (review fix F10)', () => {
+    const { html, headings } = parseMarkdownToHtml(
+      '<h2>Giới thiệu<script>alert(1)</script></h2><h3>Phần <style>.x{}</style>thứ hai</h3>',
+    )
+    expect(headings.map((h) => h.text)).toEqual(['Giới thiệu', 'Phần thứ hai'])
+    expect(headings.map((h) => h.id)).toEqual(['gioi-thieu', 'phan-thu-hai'])
+    expect(html).not.toContain('alert(1)')
+  })
+
+  it('keeps target="_blank" and forces a safe rel on external links (review fix F6)', () => {
+    const { html } = parseMarkdownToHtml(
+      '<a href="https://example.com" target="_blank">liên kết</a>',
+    )
+    expect(html).toContain('target="_blank"')
+    expect(html).toContain('rel="noopener noreferrer"')
+  })
+
+  it('forces rel="noopener noreferrer" on a plain target="_blank" link too (F6)', () => {
+    const { html } = parseMarkdownToHtml('<a href="/x" target="_blank">x</a>')
+    expect(html).toContain('target="_blank"')
+    expect(html).toContain('noopener')
+  })
 })

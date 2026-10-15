@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { addressController } from '../controllers/addressController';
 import { requireAuth } from '../middleware/auth';
+import { requireFeature } from '../middleware/feature';
 import { asyncHandler } from '../utils/asyncHandler';
 import { z } from 'zod';
 import { AppError } from '../utils/AppError';
@@ -17,6 +18,11 @@ const addressSchema = z.object({
   street: z.string().trim().min(1, 'Địa chỉ đường là bắt buộc').max(500),
   isDefault: z.boolean().optional(),
 });
+
+// Account feature gate (W1.4 / review fix F1). Runs before requireAuth on
+// purpose: a disabled capability answers 404 for everyone, and an enabled one
+// falls through to the existing session check (401) exactly as before.
+router.use(requireFeature('account'));
 
 router.use(requireAuth);
 

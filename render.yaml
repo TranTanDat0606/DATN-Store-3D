@@ -8,9 +8,13 @@
 #  - server/tsconfig.json now emits CommonJS, matching api/tsconfig.json, so
 #    `node dist/server.js` actually resolves its imports.
 #
-# RELEASE_FEATURES is deliberately NOT defaulted here: when unset in production
-# the server fails closed to ['foundation','auth.login']. Set it explicitly per
-# deployment once a week's work is approved for release.
+# RELEASE_FEATURES is deliberately NOT defaulted here. When unset in
+# production the server keeps serving exactly the capabilities that already
+# serve traffic (PRODUCTION_FALLBACK = foundation, auth.login, auth.register,
+# catalog, news, account) and keeps banners/cms.* off. Setting the variable
+# explicitly REPLACES that list — omitting a live key will 404 those routes
+# in production. Set it deliberately per deployment when releasing something
+# new or retiring a capability.
 services:
   - type: web
     name: store3d-api

@@ -125,12 +125,12 @@ Feature gating now exists and is server-authoritative. Two deliberately separate
 - `server/src/release/manifest.json` — version-controlled catalogue of feature keys that EXIST in source: `foundation`, `auth.login`, `catalog`, `banners`, `cms.banner`, `news`, `auth.register`, `account`, and `cms.media|settings|section|page|nav` (@ 0.7.0). Validated at module load; a malformed manifest stops the process.
 - `RELEASE_FEATURES` env — which keys a deployment turns on.
 
-A key listed in the manifest is **not shipped** until a deployment enables it.
+A key listed in the manifest is **not automatically shipped — wiring is what enforces it**. `requireFeature(key)` is mounted on the routers that carry already-released capabilities: product/category → `catalog`, news (public **and** admin) → `news`, addresses/wishlist → `account`, `POST /api/auth/register` → `auth.register`. `false` from the switch therefore means those routes answer **404, not 403**, for everyone including admins (A-6).
 
-- `GET /api/release` — public, read-only, GET-only. Nothing to write and no DB-backed toggle, which is how "an Admin must never enable an unreleased capability" is enforced structurally.
+- `GET /api/release` — public, read-only, GET-only. Nothing to write and no DB-backed toggle, which is how "an Admin must never enable an unreleased capability" is enforced structurally. The payload carries the release version, the per-key availability map and the key catalogue — never the server environment (internal detail).
 - `requireFeature(key)` middleware answers **404, not 403**, so unreleased capabilities are not advertised. Applies to Admin routes too.
-- Production fails closed to `['foundation','auth.login']` when the variable is unset; `RELEASE_FEATURES="all"` and unknown keys are rejected in production.
-- Auth infrastructure is **never gated**: `/api/auth/*` stays mounted and answers 401 even with every feature off (R-R2).
+- When unset, production keeps serving exactly the capabilities that already serve traffic today: `PRODUCTION_FALLBACK = ['foundation','auth.login','auth.register','catalog','news','account']`. Everything not in that list — `banners`, `cms.*` — stays OFF: new capabilities default to closed. A manifest that does not declare every fallback key fails validation at boot; the switch itself is resolved while the app is constructed (`createApp()`), so an invalid `RELEASE_FEATURES` stops the process at boot rather than escaping on the first gated request. `RELEASE_FEATURES="all"` and unknown keys remain rejected in production.
+- Auth infrastructure is **never gated** (R-R2): login, logout, session (`/me`), profile and password routes stay mounted and answer 401/400 regardless of the switch. Only `POST /api/auth/register` carries a gate (`auth.register`).
 
 **Not implemented in W1 (future, per the approved plan):** the Banner CMS, the section-based Page Builder, media library, static pages, navigation config and all other CMS runtime code. The `cms.*` keys above exist only as reserved gate names; no model, controller, route or Admin UI for them exists yet. Storefront/Admin UI changes wait on Gate 1 design approval.
 
@@ -138,7 +138,7 @@ A key listed in the manifest is **not shipped** until a deployment enables it.
 
 ### Tooling / Process
 1. ~~No client-side tests~~ **RESOLVED** — `client/vitest.config.ts` exists (jsdom + MSW + vitest-axe) and `client/src/**` holds 5 test files / 30 tests. CI runs them.
-2. **Limited server tests.** 8 files / 67 tests via `node:test` (`vietQr`, `payment`, `orderStatus`, `seedCredentials`, `imagePlaceholder`, `paymentWebhookSecurity`, `authActiveState`, `releaseGating`). Coverage is concentrated on security and utility paths; order, cart and checkout flows still have no route/controller/service tests.
+2. **Limited server tests.** 8 files / 82 tests via `node:test` (`vietQr`, `payment`, `orderStatus`, `seedCredentials`, `imagePlaceholder`, `paymentWebhookSecurity`, `authActiveState`, `releaseGating`). Coverage is concentrated on security, release gating and utility paths; order, cart and checkout flows still have no route/controller/service tests.
 3. **No root README.md**
 4. **CORS permissive in development** (`*` when `NODE_ENV !== 'production'`)
 5. **No request logging** (no morgan)

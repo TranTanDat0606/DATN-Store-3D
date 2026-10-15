@@ -256,5 +256,5 @@ Request → Express Router → Validate (Zod) → Controller → Service → Mod
 - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
 - `BANK_BIN`, `BANK_ACCOUNT_NUMBER`, `BANK_ACCOUNT_NAME`, `BANK_ACCOUNT_DISPLAY_NAME`
 - `QR_TTL_MINUTES` (5), `PAYMENT_WEBHOOK_SECRET` — while unset the payment webhook **fails closed** (503 on every callback, no order touched) rather than accepting unsigned callbacks (W1.2)
-- `RELEASE_FEATURES` — comma-separated feature keys, or `all` (non-production only). Unset in production fails closed to `foundation,auth.login`. See `server/src/release/manifest.json` (W1.4)
+- `RELEASE_FEATURES` — comma-separated feature keys, or `all` (non-production only). Unset in production keeps serving the already-live capabilities (`PRODUCTION_FALLBACK` = foundation, auth.login, auth.register, catalog, news, account); `banners`/`cms.*` stay off. Setting the variable explicitly **replaces** that list — omitting a live key 404s those routes in production. See `server/src/release/manifest.json` (W1.4)
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SUPPORT_EMAIL`

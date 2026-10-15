@@ -26,8 +26,16 @@ import geminiRoutes from './routes/gemini';
 import addressRoutes from './routes/address';
 import debugRoutes from './routes/debug';
 import releaseRoutes from './routes/release';
+import { getRelease } from './release/features';
 
 export function createApp() {
+  // Fail fast (review fix F5): resolve the release switch while the app is
+  // being built, so an invalid RELEASE_FEATURES stops the process at boot
+  // (Render) or on cold start (Vercel) instead of escaping only when the
+  // first gated request happens to arrive. getRelease() memoises on the
+  // (env, value) fingerprint, so tests may still flip the switch afterwards.
+  getRelease();
+
   const app = express();
 
   app.set('trust proxy', 1);

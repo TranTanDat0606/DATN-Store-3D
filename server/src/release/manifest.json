@@ -41,7 +41,7 @@
     "account": {
       "since": "0.6.0",
       "title": "Tài khoản",
-      "description": "Sổ địa chỉ, lịch sử đơn hàng, wishlist của khách."
+      "description": "Sổ địa chỉ và wishlist của khách. Lịch sử đơn hàng thuộc lõi thương mại (orders) nên KHÔNG bị feature gate."
     },
     "cms.media": {
       "since": "0.7.0",

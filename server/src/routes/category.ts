@@ -1,10 +1,14 @@
 import { Router } from 'express';
 import { categoryController } from '../controllers/categoryController';
 import { requireAuth, requireAdmin } from '../middleware/auth';
+import { requireFeature } from '../middleware/feature';
 import { validateRequest } from '../middleware/validate';
 import { createCategorySchema, updateCategorySchema } from '../validators/category';
 
 const router = Router();
+
+// Catalog feature gate (W1.4 / review fix F1): categories ship with catalog.
+router.use(requireFeature('catalog'));
 
 router.get('/', categoryController.list);
 router.get('/all', categoryController.all);

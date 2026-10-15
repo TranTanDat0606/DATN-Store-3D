@@ -92,14 +92,33 @@ describe('release manifest — structural validation (W1.4)', () => {
       /invalid "since"/,
     );
   });
+
+  it('rejects a manifest that does not declare every production fallback key (review fix F3)', () => {
+    // The production fallback is a hard default: if the manifest ever drops a
+    // key it references, production would silently disable a live capability.
+    const { 'auth.login': _dropped, ...withoutLogin } = RELEASE_MANIFEST.features;
+    assert.throws(
+      () => validateManifest({ ...RELEASE_MANIFEST, features: withoutLogin }),
+      /production fallback.*auth\.login|auth\.login.*production fallback/,
+    );
+  });
 });
 
 describe('release resolution — fail-closed production (W1.4)', () => {
-  it('unset in production falls back to foundation + auth.login only', () => {
+  it('unset in production enables exactly the capabilities already serving traffic (review fix F1)', () => {
     const enabled = withRelease(undefined, 'production');
     assert.deepEqual([...enabled].sort(), [...PRODUCTION_FALLBACK].sort());
-    assert.equal(enabled.has('catalog'), false, 'catalog must NOT be on by default in production');
+    // These keys have live routes in this codebase: a production deployment
+    // that does not set RELEASE_FEATURES must keep serving them, otherwise the
+    // next deploy would 404 the storefront (preserving existing functionality).
+    for (const key of ['foundation', 'auth.login', 'auth.register', 'catalog', 'news', 'account']) {
+      assert.equal(enabled.has(key), true, `${key} already serves production traffic`);
+    }
+    // Fail-closed still holds for everything not yet released: no route may
+    // serve them, and /api/release must report them as unavailable.
+    assert.equal(enabled.has('banners'), false, 'banners must fail closed');
     assert.equal(enabled.has('cms.section'), false, 'unreleased CMS must stay off');
+    assert.equal(enabled.has('cms.page'), false, 'unreleased CMS must stay off');
   });
 
   it('unset outside production enables everything present in source', () => {
@@ -175,7 +194,7 @@ describe('GET /api/release — read-only status (W1.4)', () => {
 
     const body = (await r.json()) as {
       success: boolean;
-      data: { release: string; env: string; features: Record<string, boolean>; catalog: string[] };
+      data: { release: string; features: Record<string, boolean>; catalog: string[] };
     };
 
     assert.equal(body.success, true);
@@ -183,6 +202,13 @@ describe('GET /api/release — read-only status (W1.4)', () => {
     assert.equal(body.data.features.foundation, true);
     assert.equal(body.data.features.catalog, false, 'disabled features must report false');
     assert.deepEqual(body.data.catalog, [...FEATURE_KEYS]);
+  });
+
+  it('does not disclose the server environment to anonymous callers (review fix F4)', async () => {
+    const r = await fetch(`${baseUrl}/api/release`);
+    assert.equal(r.status, 200);
+    const body = (await r.json()) as { data: Record<string, unknown> };
+    assert.equal('env' in body.data, false, 'NODE_ENV is internal detail, not public status');
   });
 
   it('exposes no write surface: POST/PUT/PATCH/DELETE are rejected', async () => {
@@ -296,5 +322,167 @@ describe('auth infrastructure is never gated (R-R2)', () => {
   it('still serves the health check', async () => {
     const r = await fetch(`${baseUrl}/api/health`);
     assert.equal(r.status, 200);
+  });
+});
+
+describe('release gates are wired to live routes (review fix F1)', () => {
+  let server: Server;
+  let baseUrl: string;
+
+  before(async () => {
+    server = createServer(createApp());
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+
+  after(async () => {
+    await new Promise<void>((resolve) => {
+      server.close(() => resolve());
+      server.closeAllConnections();
+    });
+  });
+
+  afterEach(() => {
+    if (ORIG_FEATURES === undefined) delete process.env[RELEASE_FEATURES_ENV];
+    else process.env[RELEASE_FEATURES_ENV] = ORIG_FEATURES;
+    if (ORIG_ENV === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = ORIG_ENV;
+    resetReleaseCache();
+  });
+
+  /** Mirrors a real deployment: NODE_ENV=production with an explicit switch. */
+  function setRelease(features: string | undefined, env = 'production'): void {
+    if (features === undefined) delete process.env[RELEASE_FEATURES_ENV];
+    else process.env[RELEASE_FEATURES_ENV] = features;
+    process.env.NODE_ENV = env;
+    resetReleaseCache();
+  }
+
+  const jsonPost = { method: 'POST' as const, headers: { 'content-type': 'application/json' }, body: '{}' };
+
+  it('answers 404 for catalog routes when the deployment disables catalog', async () => {
+    setRelease('foundation,auth.login,news,account,auth.register');
+    assert.equal((await fetch(`${baseUrl}/api/products`)).status, 404, 'products must be unreachable');
+    assert.equal((await fetch(`${baseUrl}/api/categories/all`)).status, 404, 'categories must be unreachable');
+  });
+
+  it('reaches requireAuth — 401, not 404 — when catalog is enabled', async () => {
+    setRelease('foundation,catalog');
+    assert.equal(
+      (await fetch(`${baseUrl}/api/products`, jsonPost)).status,
+      401,
+      'an enabled feature must still fall through to its own auth layer',
+    );
+  });
+
+  it('answers 404 for public and admin news routes when news is disabled', async () => {
+    setRelease('foundation,catalog');
+    assert.equal((await fetch(`${baseUrl}/api/news`)).status, 404, 'public news must be unreachable');
+    assert.equal((await fetch(`${baseUrl}/api/news/admin/all`)).status, 404, 'admin news must be unreachable too (A-6)');
+  });
+
+  it('reaches requireAuth on an enabled news admin route', async () => {
+    setRelease('foundation,news');
+    assert.equal((await fetch(`${baseUrl}/api/news/admin/all`)).status, 401);
+  });
+
+  it('answers 404 for account routes when account is disabled', async () => {
+    setRelease('foundation,auth.login');
+    assert.equal((await fetch(`${baseUrl}/api/addresses`)).status, 404);
+    assert.equal((await fetch(`${baseUrl}/api/wishlist`)).status, 404);
+  });
+
+  it('reaches requireAuth on enabled account routes', async () => {
+    setRelease('foundation,account');
+    assert.equal((await fetch(`${baseUrl}/api/addresses`)).status, 401);
+    assert.equal((await fetch(`${baseUrl}/api/wishlist`)).status, 401);
+  });
+
+  it('gates registration while login, /me, health and release stay reachable (R-R2)', async () => {
+    setRelease('foundation,auth.login'); // auth.register deliberately OFF
+    assert.equal(
+      (await fetch(`${baseUrl}/api/auth/register`, jsonPost)).status,
+      404,
+      'registration is not part of this configuration',
+    );
+    assert.equal(
+      (await fetch(`${baseUrl}/api/auth/login`, jsonPost)).status,
+      400,
+      'login must still validate its body — auth infrastructure is never gated',
+    );
+    assert.equal((await fetch(`${baseUrl}/api/auth/me`)).status, 401);
+    assert.equal((await fetch(`${baseUrl}/api/health`)).status, 200);
+    assert.equal((await fetch(`${baseUrl}/api/release`)).status, 200);
+  });
+
+  it('lets an enabled registration reach schema validation', async () => {
+    setRelease('foundation,auth.login,auth.register');
+    assert.equal(
+      (await fetch(`${baseUrl}/api/auth/register`, jsonPost)).status,
+      400,
+      'enabled registration must reach its validator, not a release 404',
+    );
+  });
+
+  it('keeps live routes served when production runs with RELEASE_FEATURES unset', async () => {
+    setRelease(undefined, 'production');
+    assert.equal((await fetch(`${baseUrl}/api/addresses`)).status, 401, 'account is in the production fallback');
+    assert.equal((await fetch(`${baseUrl}/api/news/admin/all`)).status, 401, 'news is in the production fallback');
+    assert.equal(
+      (await fetch(`${baseUrl}/api/products`, jsonPost)).status,
+      401,
+      'catalog is in the production fallback — unset must never 404 the storefront',
+    );
+  });
+
+  it('/api/release reports exactly what the routes enforce', async () => {
+    setRelease('foundation,auth.login', 'production');
+    const body = (await (await fetch(`${baseUrl}/api/release`)).json()) as {
+      data: { features: Record<string, boolean> };
+    };
+    assert.equal(body.data.features.catalog, false);
+    assert.equal(
+      (await fetch(`${baseUrl}/api/products`)).status,
+      404,
+      'the report and the route must agree — no feature reports false while serving',
+    );
+  });
+});
+
+describe('release switch is validated when the app is built (review fix F5)', () => {
+  function withEnv(env: string, features: string | undefined, fn: () => void): void {
+    const prevFeatures = process.env[RELEASE_FEATURES_ENV];
+    const prevEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = env;
+    if (features === undefined) delete process.env[RELEASE_FEATURES_ENV];
+    else process.env[RELEASE_FEATURES_ENV] = features;
+    resetReleaseCache();
+    try {
+      fn();
+    } finally {
+      if (prevFeatures === undefined) delete process.env[RELEASE_FEATURES_ENV];
+      else process.env[RELEASE_FEATURES_ENV] = prevFeatures;
+      if (prevEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = prevEnv;
+      resetReleaseCache();
+    }
+  }
+
+  it('createApp() fails fast on a misconfigured production switch', () => {
+    withEnv('production', 'all', () => {
+      assert.throws(() => createApp(), ReleaseConfigError);
+    });
+  });
+
+  it('createApp() fails fast on unknown production feature keys', () => {
+    withEnv('production', 'foundation,not.a.feature', () => {
+      assert.throws(() => createApp(), /unknown feature key/);
+    });
+  });
+
+  it('createApp() builds normally with a valid production switch', () => {
+    withEnv('production', 'foundation,auth.login,catalog', () => {
+      assert.doesNotThrow(() => createApp());
+    });
   });
 });

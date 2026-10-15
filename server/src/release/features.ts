@@ -8,14 +8,25 @@ import manifest from './manifest.json';
  *      Version-controlled, reviewed like any other code.
  *   2. `RELEASE_FEATURES` — which of those keys a DEPLOYMENT turns on.
  *
- * A key present in the manifest is NOT shipped until a deployment enables it.
+ * Enforcement model (review fixes F1/F2):
+ *   - keys with wired routes (`catalog`, `news`, `account`, `auth.register`)
+ *     are enforced by requireFeature() on the routers listed in
+ *     PRODUCTION_FALLBACK's doc comment;
+ *   - keys with NO released route yet (`banners`, `cms.*`) are reported by
+ *     GET /api/release and stay unreachable in production until a deployment
+ *     names them — W2+ routes must mount requireFeature(key) when they land;
+ *   - when RELEASE_FEATURES is unset, production keeps serving exactly the
+ *     capabilities that already serve traffic today (see PRODUCTION_FALLBACK),
+ *     and a switch that would break that fails validation instead.
+ *
  * There is no database-backed toggle and no write endpoint on purpose: an
  * Admin setting must never be able to switch on a capability that has not
  * been released (A-6, A-12).
  *
  * Feature gating is a release-visibility control, NOT a security boundary.
  * It never substitutes for requireAuth/requireAdmin, and the auth
- * infrastructure is never gated by a feature key (R-R2).
+ * infrastructure is never gated by a feature key (R-R2): only the register
+ * route carries a gate, login/profile/me/health never do.
  */
 
 export interface FeatureDefinition {
@@ -43,19 +54,41 @@ const SEMVER = /^\d+\.\d+\.\d+$/;
 
 export const RELEASE_MANIFEST = manifest as ReleaseManifest;
 
-// Fail fast at boot: a malformed manifest must stop the process rather than
-// silently gating nothing in production.
-validateManifest(RELEASE_MANIFEST);
-
 /** Deployment switch. Comma-separated keys, or the literal `all`. */
 export const RELEASE_FEATURES_ENV = 'RELEASE_FEATURES';
 
 /**
- * Fail-closed production default. `foundation` is the shell itself and
- * `auth.login` is the only capability that is both present in source and
- * safe to expose without design approval.
+ * Production default when RELEASE_FEATURES is unset (fail-closed).
+ *
+ * Two halves, deliberately:
+ *  - foundation, auth.login, auth.register, catalog, news, account: these
+ *    keys have LIVE routes serving production traffic today. A deployment
+ *    that configures nothing must keep serving them — an unset switch may
+ *    never 404 the storefront (preserving existing functionality).
+ *  - everything NOT listed here — banners, cms.* — has no released route and
+ *    stays unreachable in production until a deployment names it explicitly.
+ *    That is the fail-closed property: NEW capabilities default to off.
+ *
+ * Note: `manifest.features[].since` records the plan's redesign release
+ * milestones (catalog 0.2.0, news 0.3.0, ...), which is a different question
+ * from "is this route already serving production?" — this fallback answers
+ * the latter. requireFeature() is wired to product/category/news/address/
+ * wishlist routers and the register route so the two inputs cannot disagree
+ * with what the API actually enforces (review fix F1).
  */
-export const PRODUCTION_FALLBACK = ['foundation', 'auth.login'] as const;
+export const PRODUCTION_FALLBACK = [
+  'foundation',
+  'auth.login',
+  'auth.register',
+  'catalog',
+  'news',
+  'account',
+] as const;
+
+// Fail fast at boot: a malformed manifest — including one that does not
+// declare every key the production fallback references — must stop the
+// process rather than silently disabling a live capability in production.
+validateManifest(RELEASE_MANIFEST);
 
 export const FEATURE_KEYS: readonly string[] = Object.keys(RELEASE_MANIFEST.features);
 
@@ -76,12 +109,19 @@ export function validateManifest(m: ReleaseManifest): void {
     if (!feature.since || !SEMVER.test(feature.since)) {
       throw new ReleaseConfigError(`Feature "${key}" has an invalid "since" version: ${feature.since}`);
     }
-    if (Number(feature.since) < Number(m.release) && !Number.isFinite(Number(feature.since))) {
-      throw new ReleaseConfigError(`Feature "${key}" has a non-numeric "since" version`);
-    }
   }
   if (!('foundation' in m.features)) {
     throw new ReleaseConfigError('Release manifest must declare the "foundation" feature');
+  }
+  // Every key the production fallback turns on must exist in the manifest,
+  // otherwise production would enable a feature nothing implements (or worse,
+  // silently lose one when the manifest drops it). Review fix F3.
+  for (const key of PRODUCTION_FALLBACK) {
+    if (!(key in m.features)) {
+      throw new ReleaseConfigError(
+        `production fallback key "${key}" is not declared in the release manifest`,
+      );
+    }
   }
 }
 
@@ -173,16 +213,21 @@ export function isFeatureEnabled(key: string): boolean {
   return getRelease().enabled.has(key);
 }
 
-/** Read-only snapshot for `GET /api/release`. Never writable. */
+/**
+ * Read-only snapshot for `GET /api/release`. Never writable.
+ *
+ * Deliberately excludes the deployment environment: it is internal operational
+ * detail with no value to a client, so the public payload carries only the
+ * release version, the per-key availability map and nothing else (review fix F4).
+ */
 export function getReleaseSnapshot(): {
   release: string;
-  env: string;
   features: Record<string, boolean>;
 } {
-  const { release, env, enabled } = getRelease();
+  const { release, enabled } = getRelease();
   const features: Record<string, boolean> = {};
   for (const key of FEATURE_KEYS) {
     features[key] = enabled.has(key);
   }
-  return { release, env, features };
+  return { release, features };
 }
