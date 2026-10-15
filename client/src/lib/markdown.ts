@@ -1,3 +1,5 @@
+import { sanitizeHtml } from './sanitize'
+
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -32,5 +34,8 @@ export function parseMarkdownToHtml(raw: string): ParsedContent {
     return `<h${level} id="${id}">${inner}</h${level}>`
   })
 
-  return { html, headings }
+  // Sanitize as the LAST step: heading ids are injected above, and this is the
+  // single choke point every HTML consumer (news detail today, CMS richText in
+  // W1.7) must pass through. See ./sanitize.ts for the threat model.
+  return { html: sanitizeHtml(html), headings }
 }

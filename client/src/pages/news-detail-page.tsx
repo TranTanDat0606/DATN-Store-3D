@@ -424,6 +424,9 @@ export default function NewsDetailPage() {
                     'prose-img:rounded-xl prose-img:shadow-md',
                   )}
                   style={{ maxWidth: 820 }}
+                  // INVARIANT (W1.1): `parsed.html` is sanitized by
+                  // lib/sanitize.ts inside parseMarkdownToHtml — the single
+                  // HTML choke point. Never point __html at raw model content.
                   dangerouslySetInnerHTML={{ __html: parsed.html }}
                 />
               )}
