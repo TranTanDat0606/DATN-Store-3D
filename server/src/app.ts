@@ -25,6 +25,7 @@ import rewardRoutes from './routes/reward';
 import geminiRoutes from './routes/gemini';
 import addressRoutes from './routes/address';
 import debugRoutes from './routes/debug';
+import releaseRoutes from './routes/release';
 
 export function createApp() {
   const app = express();
@@ -51,6 +52,11 @@ export function createApp() {
       data: { status: 'ok', db: state, timestamp: new Date().toISOString() },
     });
   });
+
+  // Release status (W1.4). Public and ungated on purpose: it is the one
+  // endpoint the client must always reach to learn what is available. Auth
+  // infrastructure is likewise never gated by a feature key.
+  app.use('/api/release', releaseRoutes);
 
   // API routes are mounted here per phase.
   app.use('/api/auth', authRoutes);

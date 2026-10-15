@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "release": "0.1.0",
+  "description": "Catalogue of every feature key the codebase can gate on. The manifest describes what EXISTS in source; deployment enables a subset via RELEASE_FEATURES. A feature listed here is NOT shipped until a deployment enables it.",
+  "features": {
+    "foundation": {
+      "since": "0.1.0",
+      "title": "Nền tảng",
+      "description": "Routing, layout, theme, health check và hạ tầng API cốt lõi. Không thể tắt."
+    },
+    "auth.login": {
+      "since": "0.1.0",
+      "title": "Đăng nhập",
+      "description": "Đăng nhập, đăng xuất, hồ sơ, đổi mật khẩu. Phần hạ tầng auth LUÔN hoạt động, không phụ thuộc feature key."
+    },
+    "catalog": {
+      "since": "0.2.0",
+      "title": "Danh mục sản phẩm",
+      "description": "Trang chủ, danh sách và chi tiết sản phẩm, danh mục, tìm kiếm. Bật từ v0.2.0 để mọi CTA trang chủ trỏ tới đích đã phát hành."
+    },
+    "banners": {
+      "since": "0.2.0",
+      "title": "Banner trang chủ",
+      "description": "Hiển thị carousel banner cho khách hàng. Chỉ đọc nội dung đã publish."
+    },
+    "cms.banner": {
+      "since": "0.2.0",
+      "title": "CMS Banner",
+      "description": "Quản trị CRUD banner: ảnh, tiêu đề, mô tả, CTA, thứ tự, trạng thái publish."
+    },
+    "news": {
+      "since": "0.3.0",
+      "title": "Tin tức",
+      "description": "Danh sách và chi tiết bài viết."
+    },
+    "auth.register": {
+      "since": "0.6.0",
+      "title": "Đăng ký tài khoản",
+      "description": "Tạo tài khoản khách hàng mới."
+    },
+    "account": {
+      "since": "0.6.0",
+      "title": "Tài khoản",
+      "description": "Sổ địa chỉ, lịch sử đơn hàng, wishlist của khách."
+    },
+    "cms.media": {
+      "since": "0.7.0",
+      "title": "CMS Thư viện media",
+      "description": "Tải lên, phân loại và tái sử dụng ảnh/tài nguyên."
+    },
+    "cms.settings": {
+      "since": "0.7.0",
+      "title": "CMS Thiết lập trang",
+      "description": "Logo, màu thương hiệu, thông tin liên hệ, SEO mặc định."
+    },
+    "cms.section": {
+      "since": "0.7.0",
+      "title": "CMS Page Builder",
+      "description": "Section-based homepage: loại block whitelist, thứ tự, hiển thị, nội dung."
+    },
+    "cms.page": {
+      "since": "0.7.0",
+      "title": "CMS Trang tĩnh",
+      "description": "Trang tĩnh và chính sách, nhánh SEO, bản nháp/preview/publish."
+    },
+    "cms.nav": {
+      "since": "0.7.0",
+      "title": "CMS Điều hướng",
+      "description": "Cấu hình menu header và footer."
+    }
+  }
+}
