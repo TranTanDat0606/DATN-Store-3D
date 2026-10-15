@@ -23,9 +23,17 @@ export async function requireAuth(req: AuthRequest, _res: Response, next: NextFu
     return next(new AppError('Phiên đăng nhập không hợp lệ hoặc đã hết hạn', 401));
   }
 
-  const user = await User.findById(payload.sub).select('_id role');
+  // W1.3: tokens live for 7 days, so "active" must be re-checked on every
+  // protected request. Selecting only `_id role` would leave `active` undefined
+  // and silently skip the check. An explicit `false` is required to reject, so
+  // legacy documents missing the field keep working.
+  const user = await User.findById(payload.sub).select('_id role active');
   if (!user) {
     return next(new AppError('Tài khoản không tồn tại', 401));
+  }
+
+  if (user.active === false) {
+    return next(new AppError('Tài khoản đã bị vô hiệu hóa', 401));
   }
 
   req.user = { _id: String(user._id), role: user.role };
