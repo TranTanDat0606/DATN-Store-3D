@@ -46,7 +46,7 @@
     "cms.media": {
       "since": "0.7.0",
       "title": "CMS Thư viện media",
-      "description": "Tải lên, phân loại và tái sử dụng ảnh/tài nguyên."
+      "description": "Thư viện media của CMS tương lai: phân loại và tái sử dụng tài nguyên. KHÔNG tính endpoint /api/upload dùng chung hiện tại (infra admin cho catalog/news, không bị feature gate)."
     },
     "cms.settings": {
       "since": "0.7.0",

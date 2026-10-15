@@ -17,9 +17,11 @@ const router = Router();
  * has switched on. Every key with wired routes is enforced by
  * requireFeature() on its router (product/category → catalog, news → news,
  * addresses/wishlist → account, register → auth.register), so `false` here
- * means those routes answer 404. Keys without released routes yet (banners,
+ * means those routes answer 404. Keys without a gated route yet (banners,
  * cms.*) report false in production until a deployment enables them, and the
  * W2+ routes that carry them must mount requireFeature(key) when they land.
+ * `cms.media` is the future media library: the existing /api/upload endpoint
+ * is shared admin infrastructure and is intentionally ungated by feature keys.
  * GET /api/release itself and auth infrastructure stay ungated (R-R2).
  *
  * Client-side consumption is intentionally NOT wired yet: no Storefront/Admin

@@ -12,12 +12,21 @@ import manifest from './manifest.json';
  *   - keys with wired routes (`catalog`, `news`, `account`, `auth.register`)
  *     are enforced by requireFeature() on the routers listed in
  *     PRODUCTION_FALLBACK's doc comment;
- *   - keys with NO released route yet (`banners`, `cms.*`) are reported by
- *     GET /api/release and stay unreachable in production until a deployment
- *     names them — W2+ routes must mount requireFeature(key) when they land;
+ *   - keys with no gated route yet (`banners`, `cms.*`) are reported by
+ *     GET /api/release and stay OFF in production until a deployment names
+ *     them — W2+ routes must mount requireFeature(key) when they land.
+ *     `cms.*` describes FUTURE CMS capabilities (media library, pages,
+ *     navigation, ...), not endpoints that already exist: the long-standing
+ *     `/api/upload` admin image upload is shared infrastructure used by live
+ *     catalog/news admin flows, is intentionally NOT gated by `cms.media`,
+ *     and keeps working under requireAuth/requireAdmin alone;
  *   - when RELEASE_FEATURES is unset, production keeps serving exactly the
- *     capabilities that already serve traffic today (see PRODUCTION_FALLBACK),
- *     and a switch that would break that fails validation instead.
+ *     capabilities that already serve traffic today (see PRODUCTION_FALLBACK).
+ *     Boot validation rejects only structurally invalid switches — "all" in
+ *     production, unknown keys, or a manifest missing a fallback key. An
+ *     explicit list that merely OMITS a live key is accepted and replaces
+ *     the fallback wholesale; that foot-gun is documented in
+ *     .ai/ARCHITECTURE.md rather than blocked by validation.
  *
  * There is no database-backed toggle and no write endpoint on purpose: an
  * Admin setting must never be able to switch on a capability that has not
@@ -65,9 +74,11 @@ export const RELEASE_FEATURES_ENV = 'RELEASE_FEATURES';
  *    keys have LIVE routes serving production traffic today. A deployment
  *    that configures nothing must keep serving them — an unset switch may
  *    never 404 the storefront (preserving existing functionality).
- *  - everything NOT listed here — banners, cms.* — has no released route and
- *    stays unreachable in production until a deployment names it explicitly.
+ *  - everything NOT listed here — banners, cms.* — has no gated route yet and
+ *    stays OFF in production until a deployment names it explicitly.
  *    That is the fail-closed property: NEW capabilities default to off.
+ *    (Existing `/api/upload` is shared admin infrastructure, not a
+ *    `cms.media` route — see the module header.)
  *
  * Note: `manifest.features[].since` records the plan's redesign release
  * milestones (catalog 0.2.0, news 0.3.0, ...), which is a different question
