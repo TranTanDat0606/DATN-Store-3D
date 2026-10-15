@@ -1,9 +1,23 @@
+# Render web service for the Express API.
+#
+# W1.5 fixes (verified locally, NOT deployed):
+#  - rootDirectory: server — the previous config ran `npm run build` / `npm start`
+#    at the repository root, but the root package.json declares neither script,
+#    so both the build and the start command failed.
+#  - `npm ci` instead of `npm install` so the lockfile is authoritative.
+#  - server/tsconfig.json now emits CommonJS, matching api/tsconfig.json, so
+#    `node dist/server.js` actually resolves its imports.
+#
+# RELEASE_FEATURES is deliberately NOT defaulted here: when unset in production
+# the server fails closed to ['foundation','auth.login']. Set it explicitly per
+# deployment once a week's work is approved for release.
 services:
   - type: web
     name: store3d-api
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build
+    rootDirectory: server
+    buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
@@ -19,6 +33,12 @@ services:
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 7d
+      # Required for payment confirmation. While unset the payment webhook
+      # answers 503 (fail closed) rather than accepting unsigned callbacks.
+      - key: PAYMENT_WEBHOOK_SECRET
+        sync: false
+      - key: RELEASE_FEATURES
+        sync: false
       - key: RATE_LIMIT_WINDOW_MS
         value: 900000
       - key: RATE_LIMIT_MAX
@@ -27,6 +47,8 @@ services:
         value: 20
       - key: BANK_BIN
         value: 970423
+      # Explicit unconfigured placeholders: real bank details are customer data
+      # and must be supplied by the operator, never invented here.
       - key: BANK_ACCOUNT_NUMBER
         value: "YOUR_BANK_ACCOUNT_NUMBER"
       - key: BANK_ACCOUNT_NAME

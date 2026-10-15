@@ -1,6 +1,8 @@
 name: CI
 
 on:
+  push:
+    branches: [develop]
   pull_request:
     branches: [main, develop]
 
@@ -37,7 +39,7 @@ jobs:
         run: npm test
 
   client:
-    name: Client - lint + typecheck + build
+    name: Client - lint + unit tests + typecheck + build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -57,5 +59,44 @@ jobs:
       - name: Lint (oxlint)
         run: npm run lint
 
+      - name: Unit + component tests (Vitest, jsdom + MSW)
+        run: npm test
+
       - name: Typecheck + build (tsc -b && vite build)
         run: npm run build
+
+  e2e:
+    name: E2E - hermetic smoke (in-memory MongoDB)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # The runner needs all three workspaces: root owns Playwright and
+      # mongodb-memory-server, client owns Vite, server owns the API.
+      - name: Install root dependencies (npm ci)
+        run: npm ci
+
+      - name: Install client dependencies (npm ci)
+        run: npm ci
+        working-directory: client
+
+      - name: Install server dependencies (npm ci)
+        run: npm ci
+        working-directory: server
+
+      - name: Install Playwright browser (chromium)
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E safety guard
+        run: npm run test:guard
+
+      # scripts/e2e-start.mjs owns a disposable in-memory MongoDB and refuses
+      # to run against TEST_DATABASE_URL, so no external database is touched.
+      - name: E2E smoke specs
+        run: npm run e2e
