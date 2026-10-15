@@ -30,7 +30,9 @@ OUTPUT ────────────→ presentation/document/visual expl
 ## 1. RESEARCH
 
 ### Status
-**TOOLS:** GitNexus (CURRENT), Context7 (CURRENT), Web Search (CURRENT), NotebookLM (EXTERNAL — manual export/import)
+**TOOLS:** GitNexus (INSTALLED, NOT INDEXED — see note), Context7 (CURRENT), Web Search (CURRENT), NotebookLM (EXTERNAL — manual export/import)
+
+> Note (verified 2026-10-15): the GitNexus MCP server is installed but has **no indexed repository**, so `gitnexus://repos` is empty. Use Grep/Glob for codebase research until the repo is indexed; do not cite GitNexus as a code reference in this state.
 
 ### INPUT
 - Task or idea to investigate

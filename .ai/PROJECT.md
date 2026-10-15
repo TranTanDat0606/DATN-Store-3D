@@ -64,7 +64,7 @@ Store3D is a Vietnamese e-commerce platform for selling 3D-printed models (figur
 - **Roles:** Two roles only — `admin` and `customer`. Last admin cannot be deleted or demoted.
 - **Image storage:** Product images stored in Cloudinary. Placeholder SVGs generated locally.
 - **Database:** MongoDB with Mongoose ODM. Schemaless but uses validation schemas.
-- **No client-side tests.** Server has 3 unit tests only.
+- **Testing:** Client uses Vitest (jsdom + MSW + vitest-axe, 5 test files); server uses `node:test` (8 test files). Both run in CI, alongside a read-only Playwright E2E smoke suite that runs against a disposable in-memory MongoDB.
 - **Cookie-based auth:** JWT stored in httpOnly cookies, not Authorization headers (primary method).
 
 ## Development Principles

@@ -118,27 +118,44 @@ Changing `api/tsconfig.json` to `"module": "ES2022"` produces ESM output, but ES
 - Production endpoints all return correct responses (200 for data, 401 for unauthenticated `/api/auth/me`)
 - `/api/health` → 200, `/api/auth/me` → 401, `/api/products` → 200, `/api/products/featured` → 200, `/api/categories/all` → 200
 
+## Release Gating (W1.4 — implemented 2026-10-15)
+
+Feature gating now exists and is server-authoritative. Two deliberately separate inputs:
+
+- `server/src/release/manifest.json` — version-controlled catalogue of feature keys that EXIST in source: `foundation`, `auth.login`, `catalog`, `banners`, `cms.banner`, `news`, `auth.register`, `account`, and `cms.media|settings|section|page|nav` (@ 0.7.0). Validated at module load; a malformed manifest stops the process.
+- `RELEASE_FEATURES` env — which keys a deployment turns on.
+
+A key listed in the manifest is **not shipped** until a deployment enables it.
+
+- `GET /api/release` — public, read-only, GET-only. Nothing to write and no DB-backed toggle, which is how "an Admin must never enable an unreleased capability" is enforced structurally.
+- `requireFeature(key)` middleware answers **404, not 403**, so unreleased capabilities are not advertised. Applies to Admin routes too.
+- Production fails closed to `['foundation','auth.login']` when the variable is unset; `RELEASE_FEATURES="all"` and unknown keys are rejected in production.
+- Auth infrastructure is **never gated**: `/api/auth/*` stays mounted and answers 401 even with every feature off (R-R2).
+
+**Not implemented in W1 (future, per the approved plan):** the Banner CMS, the section-based Page Builder, media library, static pages, navigation config and all other CMS runtime code. The `cms.*` keys above exist only as reserved gate names; no model, controller, route or Admin UI for them exists yet. Storefront/Admin UI changes wait on Gate 1 design approval.
+
 ## Known Technical Debt
 
 ### Tooling / Process
-1. **No client-side tests.** Zero test files in `client/`. No vitest/jest configuration
-2. **Limited server tests.** 4 unit-test files only (`vietQr`, `seedCredentials`, `payment`, `orderStatus`) via `node:test`; no route/controller/service tests for order, cart, checkout, or auth flows
+1. ~~No client-side tests~~ **RESOLVED** — `client/vitest.config.ts` exists (jsdom + MSW + vitest-axe) and `client/src/**` holds 5 test files / 30 tests. CI runs them.
+2. **Limited server tests.** 8 files / 67 tests via `node:test` (`vietQr`, `payment`, `orderStatus`, `seedCredentials`, `imagePlaceholder`, `paymentWebhookSecurity`, `authActiveState`, `releaseGating`). Coverage is concentrated on security and utility paths; order, cart and checkout flows still have no route/controller/service tests.
 3. **No root README.md**
 4. **CORS permissive in development** (`*` when `NODE_ENV !== 'production'`)
 5. **No request logging** (no morgan)
 6. **No API documentation** (no Swagger/OpenAPI)
-7. ~~No CI/CD pipeline~~ **RESOLVED 2026-10-13** — GitHub Actions CI active (2 required checks) + 3 branch-protection rulesets. Production auto-deploys via Vercel on push to `main`.
+7. ~~No CI/CD pipeline~~ **RESOLVED 2026-10-13** — GitHub Actions CI active + branch-protection rulesets. Production auto-deploys via Vercel on push to `main`. **Extended (W1.5, 2026-10-15):** CI now runs three jobs on PRs and pushes to `develop` — server (typecheck + 8 test files), client (lint + Vitest + typecheck + build), and a hermetic E2E smoke job (Playwright chromium against a runner-owned in-memory MongoDB, preceded by the `test:guard` safety check). All installs use `npm ci`.
 8. **No environment validation** beyond MONGODB_URI and JWT_SECRET
-9. **TypeScript strict mode not enabled** in server
+9. ~~TypeScript strict mode not enabled in server~~ **NOT ACCURATE** — `server/tsconfig.json` sets `"strict": true` (plus `noUnusedLocals`, `noUnusedParameters`, `noImplicitReturns`, `noFallthroughCasesInSwitch`).
 10. **No database migrations** (Mongoose schemaless)
 11. **GitNexus has no indexed repo** — MCP installed but `gitnexus://repos` is empty; fall back to Grep/Glob until indexed.
 12. **Playwright MCP may be unavailable in-session** — configured globally but not always loaded; `test-*.spec.ts` at repo root have no `playwright.config.ts` and are not a working e2e suite.
-13. **Deep links 404 in production** — `vercel.json` rewrites only `/api/*`, no SPA fallback; hard refresh of any client route (incl. `/dang-nhap`, `/admin`) 404s.
+13. ~~Deep links 404 in production~~ **RESOLVED (W1.5)** — `vercel.json` now carries a catch-all rewrite to `/index.html` after the existing `/api/:path*` rule, so hard refreshes of any client route work.
 
 ### Security (audit 2026-10-13 — line refs from audit digests; re-verify file:line at fix time. No source changed in Gate A1.)
-- **Webhook signature is env-gated (fail-open).** `paymentController.ts` skips HMAC verification when `PAYMENT_WEBHOOK_SECRET` is unset; route does not mount raw-body middleware. HIGH.
-- **Order price trusted from client.** `orderController.ts` reads `price`/`priceDiscounted` from `req.body`; server recompute (`recalculateTotals`) exists but is never triggered. HIGH.
-- **Auth middleware defects.** `auth.ts`: async JWT verify not awaited/caught (invalid token → unhandled rejection, no 401); `active` flag never re-checked after verify (banned admin stays active until token expiry). HIGH.
+- ~~Webhook signature is env-gated (fail-open)~~ **RESOLVED (W1.2)** — `routes/payment.ts` now fails closed: with `PAYMENT_WEBHOOK_SECRET` unset every callback is rejected (503) before any order lookup, and an invalid signature is rejected 401 with a timing-safe comparison. `/webhook/simulate` stays development-only. Regression coverage: `server/tests/paymentWebhookSecurity.test.ts`.
+- **Stored XSS in News rendering (audit digest missed this).** `validators/news.ts` constrained `News.content` only as `z.string().trim().min(1)` with no HTML restriction, while `news-detail-page.tsx` inserted it via `dangerouslySetInnerHTML` on a public route — admin-account compromise became code execution for anonymous readers. **RESOLVED (W1.1)** — `client/src/lib/sanitize.ts` (DOMPurify, explicit prose allowlist) sanitizes inside `parseMarkdownToHtml`, the single HTML choke point. Coverage: `client/src/lib/markdown.test.ts`.
+- **Order price trusted from client.** `orderController.ts` reads `price`/`priceDiscounted` from `req.body`; server recompute (`recalculateTotals`) exists but is never triggered. HIGH. **Still open.**
+- **Auth middleware defects.** The `active` flag was never re-checked after token verification, so a deactivated user — including a deactivated admin — kept access for the remaining life of a 7-day JWT. **RESOLVED (W1.3)**: `middleware/auth.ts` now selects `_id role active` and rejects `active === false` with 401 before `req.user` is ever attached. Coverage: `server/tests/authActiveState.test.ts`. The digest's other claim — "async JWT verify not awaited/caught, invalid token yields an unhandled rejection" — is **not accurate against current source**: `utils/token.ts#verifyToken` is synchronous and wraps `jwt.verify` in try/catch, returning `null`, which `requireAuth` turns into a 401.
 - **No DB transaction on order creation.** `orderService.ts` writes Order+OrderItem+Payment+coupon without session; admin-cancel does not restore coupon usage. MED.
 - **Public AI endpoints accept free-form payloads.** `schemas/gemini.ts`, `schemas/aiChat.ts` have no Zod object (rate-limited only). MED.
 

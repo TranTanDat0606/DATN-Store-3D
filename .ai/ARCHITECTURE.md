@@ -75,8 +75,8 @@ server/src/
 ├── controllers/       # 11 controller files (thin, delegate to services)
 ├── database/          # connect.ts (Mongoose connection)
 ├── middleware/        # auth.ts, validate.ts, errorHandler.ts, notFound.ts
-├── models/            # 10 Mongoose models + barrel export
-├── routes/            # 13 route files (mount under /api/)
+├── models/            # 13 Mongoose models + barrel export
+├── routes/            # 19 route files (mount under /api/)
 ├── services/          # 16 service files (business logic)
 ├── utils/             # AppError, apiResponse, apiFeatures, asyncHandler, slugify, token, etc.
 ├── validators/        # 8 Zod schema files
@@ -217,7 +217,7 @@ Request → Express Router → Validate (Zod) → Controller → Service → Mod
 
 ### JWT Flow
 1. User logs in → server verifies credentials → signs JWT with `{ sub: userId, role }` → sets httpOnly cookie named `token`
-2. Subsequent requests → `requireAuth` middleware reads cookie (or `Authorization: Bearer` header) → verifies JWT → looks up user → attaches `{ _id, role }` to `req.user`
+2. Subsequent requests → `requireAuth` middleware reads cookie (or `Authorization: Bearer` header) → verifies JWT → looks up user **and re-checks `active`** → attaches `{ _id, role }` to `req.user`. A deactivated account is rejected with 401 even while its JWT is still valid (W1.3)
 3. Admin routes → `requireAdmin` middleware checks `req.user.role === 'admin'`
 
 ### Token Settings
@@ -255,5 +255,6 @@ Request → Express Router → Validate (Zod) → Controller → Service → Mod
 - `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX`, `AUTH_RATE_LIMIT_MAX`
 - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
 - `BANK_BIN`, `BANK_ACCOUNT_NUMBER`, `BANK_ACCOUNT_NAME`, `BANK_ACCOUNT_DISPLAY_NAME`
-- `QR_TTL_MINUTES` (5), `PAYMENT_WEBHOOK_SECRET`
+- `QR_TTL_MINUTES` (5), `PAYMENT_WEBHOOK_SECRET` — while unset the payment webhook **fails closed** (503 on every callback, no order touched) rather than accepting unsigned callbacks (W1.2)
+- `RELEASE_FEATURES` — comma-separated feature keys, or `all` (non-production only). Unset in production fails closed to `foundation,auth.login`. See `server/src/release/manifest.json` (W1.4)
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SUPPORT_EMAIL`
